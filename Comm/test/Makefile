@@ -1,11 +1,8 @@
-all: client server
+all: test
 
-client: client.cc
-	g++ -g -o $@ $^
-
-server: server.cc
-	g++ -g -o $@ $^
+test: test.cc
+	g++ -g -o $@ $^ -lgtest -lgtest_main -pthread
 
 .PHONY: clean
 clean:
-	rm client server
+	rm test

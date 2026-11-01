@@ -7,6 +7,7 @@
 #include <sys/resource.h>
 #include <sys/time.h>
 #include <sys/types.h>
+#include <chrono>
 #include <atomic>
 #include <vector>
 
@@ -44,6 +45,19 @@ namespace NS_UTIL_MODULE
             suseconds_t sus = tv.tv_usec;
             long long ms = sec * 1000 + sus / 1000;
             return std::to_string(ms);
+        }
+
+        template<class DurationType>
+        static struct timeval ToTimeval(DurationType d)
+        {
+            auto sec = std::chrono::duration_cast<std::chrono::seconds>(d);
+            auto usec = std::chrono::duration_cast<std::chrono::microseconds>(d - sec);
+
+            struct timeval tv;
+            tv.tv_sec = static_cast<time_t>(sec.count());
+            tv.tv_usec = static_cast<suseconds_t>(usec.count());
+
+            return tv;
         }
     };
 

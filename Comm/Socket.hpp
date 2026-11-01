@@ -1,9 +1,11 @@
 #pragma once
 #include "InetAddr.hpp"
+#include "Util.hpp"
 #include <cstring>
 #include <utility>
 #include <vector>
 #include <unistd.h>
+#include <chrono>
 #include <sys/socket.h>
 #define BUF_SIZE 10240
 
@@ -35,6 +37,15 @@ namespace NS_SOCKET_MODULE
         ~Socket()
         {
             close(_sockfd);
+        }
+
+        bool SetSockTimeout(std::chrono::milliseconds time_interval)
+        {
+            struct timeval tv;
+            tv = NS_UTIL_MODULE::TimeUtil::ToTimeval(time_interval);
+
+            setsockopt(_sockfd, , int optname, const void *optval, socklen_t optlen);
+
         }
     protected:
         int _sockfd;
