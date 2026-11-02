@@ -1,6 +1,7 @@
 #pragma once
 #include "InetAddr.hpp"
 #include "Util.hpp"
+#include <asm-generic/socket.h>
 #include <cstring>
 #include <utility>
 #include <vector>
@@ -39,13 +40,17 @@ namespace NS_SOCKET_MODULE
             close(_sockfd);
         }
 
-        bool SetSockTimeout(std::chrono::milliseconds time_interval)
+        bool SetRecvTimeout(std::chrono::milliseconds time_interval)
         {
             struct timeval tv;
             tv = NS_UTIL_MODULE::TimeUtil::ToTimeval(time_interval);
 
-            setsockopt(_sockfd, , int optname, const void *optval, socklen_t optlen);
-
+            int n = setsockopt(_sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+            if(n < 0)
+            {
+                return false;
+            }
+            return true;
         }
     protected:
         int _sockfd;

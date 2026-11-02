@@ -1,5 +1,5 @@
 #pragma once
-#include "ConnectionManager.hpp"
+#include "../Connection/ConnectionManager.hpp"
 #include "../Comm/InetAddr.hpp"
 #include "../Comm/Logger.hpp"
 #include <cstddef>
@@ -17,10 +17,23 @@ namespace NS_PROTOCOL_MODULE
 #define HEAD_LEN (TYPE_LEN + SEQ_LEN)
 #define MAX_DATA_LEN (MAX_TOTAL_LEN - HEAD_LEN)
 
-    using namespace NS_CONNECTIOM_MANAGER_MODULE;
+    enum Type : uint16_t
+    {
+        SYN = 0x01,
+        SYN_ACK,
+        ACK,
+        SIGNAL,
+        FIN,
+        HANDSHAKE1st,
+        HANDSHAKE2nd,
+        HANDSHAKE3rd
+    };
+
+
+    using namespace NS_CONNECTIOM_MODULE;
     using namespace NS_LOGGER_MUDULE;
 
-    class Request
+    class Message
     {
     private:
         // 提取buf下标为offset的内存变量
@@ -30,7 +43,7 @@ namespace NS_PROTOCOL_MODULE
             static_assert(std::is_trivially_copyable_v<T>);
             if (offset + sizeof(T) > buf.size())
             {
-                LOG(LogLevel::ERRNO) << "read_field: buffer too small";
+                LOG(LogLevel::ERRNO) << "读取失败，接收缓冲区太小了";
                 return T();
             }
             T v;
@@ -53,50 +66,7 @@ namespace NS_PROTOCOL_MODULE
         {
             return std::vector<char>(buf.begin() + HEAD_LEN, buf.end());
         }
-    public:
-        // 反序列化一个请求
-        bool Deserializate(const std::vector<char>& req_vec)
-        {
-            if(req_vec.size() < TYPE_LEN + SEQ_LEN)
-            {
-                return false;
-            }
 
-            _type = ParseType(req_vec);
-            _seq  = ParseSeq(req_vec);
-            _payload = ParsePayload(req_vec);
-
-            return true;
-        }
-
-        uint16_t Type() const 
-        {
-            return _type;
-        }
-
-        uint64_t Seq() const 
-        {
-            return _seq;
-        }
-
-        std::vector<char> Payload() const
-        {
-            return _payload;
-        }
-
-        std::vector<char>& Payload()
-        {
-            return _payload;
-        }
-    private:
-        uint16_t _type;
-        uint64_t _seq;
-        std::vector<char> _payload;
-    };
-
-    class Response
-    {
-    private:
         // 将T类型的数据写如buf的offset下标
         template<class T>
         void WriteField(std::vector<char>* buf, size_t offset, const T& v) 
@@ -129,20 +99,30 @@ namespace NS_PROTOCOL_MODULE
             }
             memcpy(buf->data() + HEAD_LEN, _payload.data(), _payload.size());
         }
+
     public:
-        Response(uint16_t type, uint16_t seq, const std::vector<char>&_payload)
+        Message() = default;
+
+        Message(uint16_t type, uint64_t seq, const std::vector<char>& payload)
             :_type(type)
             ,_seq(seq)
-            ,_payload(_payload)
+            ,_payload(payload)
         {  }
 
-        Response(uint16_t type, uint64_t seq, std::vector<char>&&_payload)
-            :_type(type)
-            ,_seq(seq)
-            ,_payload(std::move(_payload))
-        {  }
+        // 反序列化一个请求
+        bool Deserializate(const std::vector<char>& req_vec)
+        {
+            if(req_vec.size() < TYPE_LEN + SEQ_LEN)
+            {
+                return false;
+            }
 
-        Response() = default;
+            _type = ParseType(req_vec);
+            _seq  = ParseSeq(req_vec);
+            _payload = ParsePayload(req_vec);
+
+            return true;
+        }
 
         void SetType(uint16_t type)
         {
@@ -154,16 +134,31 @@ namespace NS_PROTOCOL_MODULE
             _seq = seq;
         }
 
-        void SetPayLoad(const std::vector<char>& payload)
+        void SetPayload(const std::vector<char>& payload)
         {
 
             _payload = payload;
         }
 
-        void SetPayLoad(std::vector<char>&& payload)
+        void SetPayload(std::vector<char>&& payload)
         {
 
             _payload = std::move(payload);
+        }
+
+        uint16_t GetType() const 
+        {
+            return _type;
+        }
+
+        uint64_t GetSeq() const 
+        {
+            return _seq;
+        }
+
+        std::vector<char> GetPayload() const 
+        {
+            return _payload;
         }
 
         // 序列化一个响应
@@ -186,7 +181,7 @@ namespace NS_PROTOCOL_MODULE
         std::vector<char> _payload;
     };
 
-    using handler_t = std::function<Response(Request, InetAddr*)>;
+    using handler_t = std::function<Message(Message, InetAddr*)>;
 
     class FFSTProtocol
     {
@@ -194,7 +189,7 @@ namespace NS_PROTOCOL_MODULE
         // 处理一个请求, 并返回一个应答
         std::vector<char> ParseProtocol(std::vector<char>& req_vec, InetAddr* out_addr)
         {
-            Request req;
+            Message req;
             bool success = req.Deserializate(req_vec);
             if(!success)
             {
@@ -202,7 +197,7 @@ namespace NS_PROTOCOL_MODULE
                 return std::vector<char>();
             }
 
-            Response resp = _handler(req, out_addr);
+            Message resp = _handler(req, out_addr);
 
             std::vector<char> resp_vec;
             success = resp.Serializate(&resp_vec);

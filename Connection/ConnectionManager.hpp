@@ -1,4 +1,5 @@
 #pragma once
+#include <chrono>
 #include <memory>
 #include <string>
 #include <sys/socket.h>
@@ -6,21 +7,23 @@
 #include <mutex>
 #include "../Comm/Socket.hpp"
 
-namespace NS_CONNECTIOM_MANAGER_MODULE
+namespace NS_CONNECTIOM_MODULE
 {
+    // 最大失败次数
+    const int g_max_fails = 3;
+    // 超时, 默认5000毫秒
+    const std::chrono::milliseconds g_timeout(5000);
+
     using namespace NS_SOCKET_MODULE;
-    class Connection
+    struct Connection
     {
-    public:
+        Connection() = default;
+
         Connection(const std::string& id, const InetAddr& addr)
             :_id(id)
             ,_addr(addr)
-        {
-        }
+        {  }
 
-
-
-    private:
         std::shared_ptr<Socket> _sockfd;
         InetAddr _addr;
         std::string _id;
