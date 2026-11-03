@@ -24,6 +24,16 @@ namespace NS_CONNECTIOM_MODULE
             ,_addr(addr)
         {  }
 
+        int Send(std::vector<char> send_buf)
+        {
+            return _sockfd->Send(send_buf, _addr);
+        }
+
+        int Recv(std::vector<char>* recv_buf)
+        {
+            return _sockfd->Recv(recv_buf, nullptr);
+        }
+
         std::shared_ptr<Socket> _sockfd;
         InetAddr _addr;
         std::string _id;

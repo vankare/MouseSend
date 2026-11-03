@@ -1,11 +1,11 @@
 #pragma once
 #include "../Connection/ConnectionManager.hpp"
-#include "../Comm/InetAddr.hpp"
 #include "../Comm/Logger.hpp"
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <string>
+#include <unistd.h>
 #include <utility>
 #include <functional>
 
@@ -20,13 +20,13 @@ namespace NS_PROTOCOL_MODULE
     enum Type : uint16_t
     {
         SYN = 0x01,
-        SYN_ACK,
         ACK,
-        SIGNAL,
         FIN,
+        SIGNAL,
         HANDSHAKE1st,
         HANDSHAKE2nd,
-        HANDSHAKE3rd
+        HANDSHAKE3rd,
+        ERROR
     };
 
 
@@ -75,9 +75,9 @@ namespace NS_PROTOCOL_MODULE
             if (buf->size() < offset + sizeof(v))
             {
                 size_t new_size = offset + sizeof(v);
-                _payload.resize(new_size);
+                buf->resize(new_size);
             }
-            std::memcpy(_payload.data() + offset, &v, sizeof(v));
+            std::memcpy(buf->data() + offset, &v, sizeof(v));
         }
 
         void WriteType(std::vector<char>* buf)
@@ -95,7 +95,7 @@ namespace NS_PROTOCOL_MODULE
             if(buf->size() < HEAD_LEN + _payload.size())
             {
                 size_t new_size = HEAD_LEN + _payload.size();
-                _payload.resize(new_size);
+                buf->resize(new_size);
             }
             memcpy(buf->data() + HEAD_LEN, _payload.data(), _payload.size());
         }
@@ -109,17 +109,17 @@ namespace NS_PROTOCOL_MODULE
             ,_payload(payload)
         {  }
 
-        // 反序列化一个请求
-        bool Deserializate(const std::vector<char>& req_vec)
+        // 序列化, 字段 --> 字节流
+        bool Serializate(std::vector<char>* const out_vec)
         {
-            if(req_vec.size() < TYPE_LEN + SEQ_LEN)
+            if(out_vec == nullptr)
             {
                 return false;
             }
 
-            _type = ParseType(req_vec);
-            _seq  = ParseSeq(req_vec);
-            _payload = ParsePayload(req_vec);
+            WriteType(out_vec);
+            WriteSeq(out_vec);
+            WritePayload(out_vec);
 
             return true;
         }
@@ -161,17 +161,17 @@ namespace NS_PROTOCOL_MODULE
             return _payload;
         }
 
-        // 序列化一个响应
-        bool Serializate(std::vector<char>* out_vec)
+        // 反序列化，字节流 -> 字段
+        bool Deserializate(const std::vector<char> vec)
         {
-            if(out_vec == nullptr)
+            if(vec.size() < HEAD_LEN)
             {
                 return false;
             }
 
-            out_vec->clear();
-            WriteType(out_vec);
-            WriteSeq(out_vec);
+            _type = ParseType(vec);
+            _seq = ParseSeq(vec);
+            _payload = ParsePayload(vec);
 
             return true;
         }
@@ -181,13 +181,13 @@ namespace NS_PROTOCOL_MODULE
         std::vector<char> _payload;
     };
 
-    using handler_t = std::function<Message(Message, InetAddr*)>;
+    using handler_msg_t = std::function<Message(Message)>;
 
-    class FFSTProtocol
+    class Protocol
     {
     public:
         // 处理一个请求, 并返回一个应答
-        std::vector<char> ParseProtocol(std::vector<char>& req_vec, InetAddr* out_addr)
+        std::vector<char> ParseProtocol(std::vector<char>& req_vec)
         {
             Message req;
             bool success = req.Deserializate(req_vec);
@@ -197,7 +197,7 @@ namespace NS_PROTOCOL_MODULE
                 return std::vector<char>();
             }
 
-            Message resp = _handler(req, out_addr);
+            Message resp = _handler_msg(req);
 
             std::vector<char> resp_vec;
             success = resp.Serializate(&resp_vec);
@@ -210,11 +210,24 @@ namespace NS_PROTOCOL_MODULE
             return resp_vec;
         }
 
+        bool Register(handler_msg_t handler_msg)
+        {
+            if(handler_msg)
+            {
+                _handler_msg = handler_msg;
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
         static std::string _version;
     private:
         ConnectionManager _connections;
-        handler_t _handler;
+        handler_msg_t _handler_msg;
     };
-    inline std::string FFSTProtocol::_version = "0.1.0";
+    inline std::string Protocol::_version = "0.1.0";
 
 }

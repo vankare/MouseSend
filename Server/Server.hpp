@@ -9,13 +9,11 @@
 #include <functional>
 #include <utility>
 
-namespace NS_SIGNAL_SERVER_MODULE
+namespace NS_SERVER_MODULE
 {
-#define SIGNAL_START 0
-#define SIGNAL_END   1
     using namespace NS_LOGGER_MUDULE;
     using namespace NS_SOCKET_MODULE;
-    using handler_t = std::function<std::vector<char>(std::vector<char>&, InetAddr*)>;
+    using handler_t = std::function<std::vector<char>(std::vector<char>&)>;
     class Server
     {
     public:
@@ -66,7 +64,7 @@ namespace NS_SIGNAL_SERVER_MODULE
             std::vector<char> send_buf;
             uint64_t status = 0;
             InetAddr target;
-            send_buf = _handler(recv_buf, &target);
+            send_buf = _handler(recv_buf);
             if(!send_buf.empty())
             {
                 int n = _updfd->Send(send_buf, target);
