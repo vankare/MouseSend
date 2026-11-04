@@ -18,8 +18,9 @@ namespace NS_SERVER_MODULE
     {
     public:
         Server(uint16_t port)
+            :_udpfd(new UdpSocket)
         {
-            bool success =_updfd->BuildUdpServer(port);
+            bool success =_udpfd->BuildUdpServer(port);
             if(!success)
             {
                 LOG(LogLevel::FATAL) << "服务器构建失败";
@@ -45,7 +46,7 @@ namespace NS_SERVER_MODULE
             {
                 std::vector<char> recv_buf;
                 InetAddr peer;
-                int n = _updfd->Recv(&recv_buf, &peer);
+                int n = _udpfd->Recv(&recv_buf, &peer);
 
                 if(n > 0)
                 {
@@ -67,7 +68,7 @@ namespace NS_SERVER_MODULE
             send_buf = _handler(recv_buf);
             if(!send_buf.empty())
             {
-                int n = _updfd->Send(send_buf, target);
+                int n = _udpfd->Send(send_buf, target);
                 if(n > 0)
                 {
                     LOG(LogLevel::INFO) << "成功处理一条请求";
@@ -78,6 +79,6 @@ namespace NS_SERVER_MODULE
         }
     private:
         handler_t _handler;
-        std::unique_ptr<Socket> _updfd;
+        std::unique_ptr<Socket> _udpfd;
     };
 }

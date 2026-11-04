@@ -41,7 +41,12 @@ public:
         _port = ntohs(addr.sin_port);
     }
 
-    const sockaddr_in* Addr() const 
+    const sockaddr_in* Addr() const
+    {
+        return &_addr;
+    }
+
+    sockaddr_in* Addr()
     {
         return &_addr;
     }

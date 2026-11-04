@@ -17,9 +17,11 @@ void test_client()
         data.resize(message.size());
         memcpy(data.data(), message.data(), message.size());
         sockfd->Send(data, addr);
-        data.push_back(0);
-        printf("%s\n", (const char*)data.data());
         sockfd->Recv(&data, nullptr);
+        message.clear();
+        message.resize(data.size());
+        memcpy(message.data(), data.data(), data.size());
+        std::cout << message << std::endl;;
     }
 }
 

@@ -7,7 +7,6 @@ void test_server()
     std::shared_ptr<Socket> sockfd(new UdpSocket);
     sockfd->BuildUdpServer(4000);
     
-    int cnt = 10;
     while(true)
     {
         std::vector<char> data(1024, 0);

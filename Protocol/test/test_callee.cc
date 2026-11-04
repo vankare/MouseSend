@@ -17,7 +17,8 @@ TEST(Strategy, CalleeStrategy)
             ofs.write(data.data(), data.size());
 
             return std::vector<char>();
-        }
+        },
+        3000
     );
     callee.StartRecv();
 }

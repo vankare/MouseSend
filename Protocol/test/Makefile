@@ -11,4 +11,4 @@ test_callee: test_callee.cc
 
 .PHONY: clean
 clean:
-	rm test test_callee test_callee
+	rm test test_callee test_caller

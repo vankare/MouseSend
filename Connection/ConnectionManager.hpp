@@ -22,7 +22,10 @@ namespace NS_CONNECTIOM_MODULE
         Connection(const std::string& id, const InetAddr& addr)
             :_id(id)
             ,_addr(addr)
-        {  }
+            ,_sockfd(new UdpSocket)
+        {  
+            _sockfd->BuildUdpClient();
+        }
 
         int Send(std::vector<char> send_buf)
         {

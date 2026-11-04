@@ -52,10 +52,12 @@ namespace NS_PROTOCOL_MODULE
         std::vector<std::vector<char>> MakeChunk(const std::vector<char>& data, uint64_t chunk_size = g_chunk_size)
         {
             std::vector<std::vector<char>> chunks;
-            for(uint64_t i = 0; i < data.size(); i += chunk_size)
+            for(uint64_t i = 0; i < data.size(); )
             {
                 uint64_t end = std::min(i + chunk_size, data.size());
-                chunks.push_back( std::vector<char>(data.begin() + i, data.begin() + i + chunk_size));
+
+                chunks.push_back( std::vector<char>(data.begin() + i, data.begin() + end));
+                i += end;
             }
             return chunks;
         }
@@ -114,7 +116,15 @@ namespace NS_PROTOCOL_MODULE
                     for(auto& [_, packet] : window)
                     {
                         std::unique_lock<std::mutex> lock(_mtx);
-                        _conn.Send(packet._send_buf);
+                        int n = _conn.Send(packet._send_buf);
+                        if(n < 0)
+                        {
+                            LOG(LogLevel::WARNING) << "尝试一次发送失败" << n;
+                        }
+                        else
+                        {
+                            LOG(LogLevel::DEBUG) << "发送数据报成功, seq:";
+                        }
                     }
 
                     // 6. 接收所有的响应
@@ -181,8 +191,8 @@ namespace NS_PROTOCOL_MODULE
          * handler_data_t 处理业务数据
          */
 
-        CalleeStrategy(handler_data_t handler_data)
-            :_svr(0)
+        CalleeStrategy(handler_data_t handler_data, uint16_t port = 0)
+            :_svr(port)
             ,_handler_data(handler_data)
         {  
             _svr.Register(
@@ -202,7 +212,7 @@ namespace NS_PROTOCOL_MODULE
 
             _data.reserve(g_init_recv_buf_size);
 
-            LOG(LogLevel::INFO) << "成功注册CalleeStrategy";
+            LOG(LogLevel::DEBUG) << "注册处理数据方法成功";
         }
 
         void StartRecv()

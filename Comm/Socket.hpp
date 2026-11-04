@@ -96,19 +96,18 @@ namespace NS_SOCKET_MODULE
                 std::cerr << "recv: out_data is nullptr" << std::endl;
                 return -1;
             }
-            if(peer == nullptr)
-            {
-                std::cerr << "recv: peer is nullptr" << std::endl;
-                return -1;
-            }
+
             std::vector<char> buf(BUF_SIZE);
-            socklen_t peer_len;
             sockaddr_in addr;
-            int n = recvfrom(_sockfd, buf.data(), BUF_SIZE, 0, (sockaddr*)&addr, &peer_len);
+            socklen_t addr_len = sizeof(addr);
+            int n = recvfrom(_sockfd, buf.data(), BUF_SIZE, 0, (sockaddr*)&addr, &addr_len);
             buf.erase(buf.begin() + n, buf.end());
             out_data->resize(n);
             *out_data = std::move(buf);
-            *peer = InetAddr(addr);
+            if(peer != nullptr)
+            {
+                *peer = InetAddr(addr);
+            }
             return n;
         }
     };
