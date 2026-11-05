@@ -1,10 +1,10 @@
 #pragma once
 
-#include "../Comm/Logger.hpp"
-#include "../Comm/Socket.hpp"
+#include "../Net/Logger.hpp"
+#include "../Net/Socket.hpp"
 #include <cstdint>
 #include <memory>
-#include "../Comm/InetAddr.hpp"
+#include "../Net/InetAddr.hpp"
 #include <sys/socket.h>
 #include <functional>
 #include <utility>

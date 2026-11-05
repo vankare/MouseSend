@@ -1,7 +1,7 @@
-#include "../TransportStrategy.hpp"
+#include "../../Transport/CalleeStrategy.hpp"
 #include <fstream>
 #include <gtest/gtest.h>
-using namespace NS_PROTOCOL_MODULE;
+using namespace NS_STRATEGY_MODULE;
 
 TEST(Strategy, CalleeStrategy)
 {

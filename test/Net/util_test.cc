@@ -1,6 +1,6 @@
 #include <chrono>
 #include <gtest/gtest.h>
-#include "../Util.hpp"
+#include "../../Net/Util.hpp"
 using namespace NS_UTIL_MODULE;
 
 TEST(TestUtil, TestTimeUtil)

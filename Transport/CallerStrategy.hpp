@@ -1,34 +1,20 @@
 #pragma once
-#include "../Server/Server.hpp"
-#include "../Comm/Logger.hpp"
-#include "../Connection/ConnectionManager.hpp"
-#include "Protocol.hpp"
-#include <cerrno>
-#include <climits>
-#include <cstring>
-#include <memory>
-#include <sys/socket.h>
-#include <functional>
-#include <chrono>
-#include <cstdint>
-#include <mutex>
-#include <unordered_map>
-#include <utility>
 #include <vector>
-#include <set>
+#include <chrono>
+#include "../Net/Logger.hpp"
+#include "../Message/Message.hpp"
+#include "Connection.hpp"
 
-namespace NS_PROTOCOL_MODULE
+namespace NS_STRATEGY_MODULE
 {
-    using handler_data_t = std::function<std::vector<char>(std::vector<char>)>;
     using namespace NS_CONNECTIOM_MODULE;
-    using namespace NS_SERVER_MODULE;
+    using namespace NS_LOGGER_MUDULE;
+    using namespace NS_MESSAGE_MODULE;
 
-    const uint64_t g_init_recv_buf_size = 40960;   // 预开辟接收缓冲区大小
+    const std::chrono::milliseconds g_timeout(5000); // // 超时, 默认5000毫秒
+    const int g_max_fails = 3;            // // 最大失败次数
     const uint64_t g_chunk_size = 4096;   // 分片大小
     const uint16_t g_win_size = 4;        // 窗口大小
-    const int g_max_fails = 3;            // // 最大失败次数
-    const std::chrono::milliseconds g_timeout(5000); // // 超时, 默认5000毫秒
-    const char g_token = '&';
     struct PendingPacket
     {
         PendingPacket(std::vector<char>&& send_buf)
@@ -184,179 +170,5 @@ namespace NS_PROTOCOL_MODULE
         }
     private:
         Connection _conn;     // 对端连接
-    };
-
-    // 被调用者(实际接收数据的机器)
-    class ServerStrategy
-    {
-    public:
-        /*
-         * handler_t 处理套接字读到的数据
-         * handler_msg_t 处理协议解析后的数据
-         * handler_data_t 处理业务数据
-         */
-
-        ServerStrategy(handler_data_t handler_data, uint16_t port = 0)
-            :_svr(port)
-            ,_handler_data(handler_data)
-        {  
-            _svr.Register(
-                [this](std::vector<char> req) -> std::vector<char>
-                {
-                    return this->_protocol.ParseProtocol(req);
-                }
-            );
-
-            _protocol.Register(
-                [this](const Message& req) -> Message
-                {
-                    std::vector<char> resp_vec = this->_handler_data(req.GetPayload());
-                    return Message(ACK, req.GetSeq(), resp_vec);
-                }
-            );
-
-            _data.reserve(g_init_recv_buf_size);
-
-            LOG(LogLevel::DEBUG) << "注册处理数据方法成功";
-        }
-
-        void StartRecv()
-        {
-            _svr.Loop();
-        }
-
-        virtual Message Answer(Message in_msg) = 0;
-    protected:
-        Server _svr;                         // 基础服务器
-        Protocol _protocol;                  // 协议
-        handler_data_t _handler_data;        // 处理数据方法(外部注册)
-        std::vector<char> _data;             // 接收到的数据
-    };
-
-    class CalleeStrategy : public ServerStrategy
-    {
-    public:
-        CalleeStrategy(handler_data_t handler_data, uint16_t port = 0)
-            :ServerStrategy(handler_data, port)
-        {  }
-
-        Message Answer(Message in_msg) override
-        {
-            Type type = static_cast<Type>(in_msg.GetType());
-            if(type != SYN || type != FIN)
-            {
-                return Message(ERROR, 0, std::vector<char>());
-            }
-            auto&& payload =  in_msg.GetPayload();
-            uint64_t seq = in_msg.GetSeq();
-
-            _seqs.insert(seq);
-            _data.resize(seq + payload.size());
-
-            memcpy(_data.data() + seq, payload.data(), payload.size());
-
-            if(IsFinish())
-            {
-                return Message(FIN, seq, std::vector<char>());
-            }
-            return Message(Type::ACK, seq, std::vector<char>());
-        }
-    private:
-        bool IsFinish()
-        {
-            if(_max_seq == ULLONG_MAX || _seqs.empty())
-            {
-                return false;
-            }
-            
-            if(_seqs.size() <= 2 && *_seqs.rbegin() == _max_seq)
-            {
-                return true;
-            }
-
-            auto iter = _seqs.begin();
-            auto next = std::next(iter);
-            uint64_t diff = *next - *iter;
-            for(; next != _seqs.end(); ++next, ++iter)
-            {
-                if(*next - *iter != diff)
-                {
-                    return false;
-                }
-            }
-            return true;
-        }
-    private: 
-        std::set<uint64_t> _seqs;
-        uint64_t _max_seq = ULLONG_MAX;
-    };
-
-    class SignalStrategy : public ServerStrategy
-    {
-    public:
-        SignalStrategy(handler_data_t handler_data, uint16_t port = 0)
-            :ServerStrategy(handler_data, port)
-        {  }
-
-        Message Answer(Message in_msg) override
-        {
-            Message ret_msg(ACK, 0, std::vector<char>());
-            std::vector<char> data = in_msg.GetPayload();
-            switch(in_msg.GetSeq())
-            {
-                // 建立连接的请求
-                case SIGNAL:
-                {
-                    auto peer_addr = HandlerSignal(std::string(data.begin(), data.end()));
-                    ret_msg.SetType(SIGNAL);
-                    ret_msg.SetPayload(std::vector<char>(peer_addr.begin(), peer_addr.end()));
-                    break;
-                }
-                // 断开连接的请求
-                case FIN:
-                {
-                    auto self_id = in_msg.GetPayload();
-                    if(self_id.empty())
-                    {
-                        ret_msg.SetType(ERROR);
-                        break;
-                    }
-
-                    bool success = HandlerFin(std::string(self_id.begin(), self_id.end()));
-                    if(!success)
-                    {
-                        ret_msg.SetType(ERROR);
-                    }
-
-                    ret_msg.SetType(FIN);
-                    break;
-                }
-                default:
-                {
-                    ret_msg.SetType(ERROR);
-                    break;
-                }
-            }
-            return ret_msg;
-        }
-
-    private:
-        // 传入一个对方id，返回对方地址报文。
-        std::string HandlerSignal(const std::string& peer_id)
-        {
-            Connection peer_conn;
-            _cm.GetConnById(peer_id, &peer_conn);
-            return peer_conn._addr.ToString();
-        }
-
-        // 传入自己id, 能够删除对端id记录和断开关联
-        bool HandlerFin(const std::string& self_id)
-        {
-            _cm.DelConnection(self_id);
-            return true;
-        }
-
-    private:
-        ConnectionManager _cm;           // 连接管理器
     };
 }

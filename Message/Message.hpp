@@ -1,6 +1,5 @@
 #pragma once
-#include "../Connection/ConnectionManager.hpp"
-#include "../Comm/Logger.hpp"
+#include "../Net/Logger.hpp"
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -9,7 +8,7 @@
 #include <utility>
 #include <functional>
 
-namespace NS_PROTOCOL_MODULE
+namespace NS_MESSAGE_MODULE
 {
 #define TYPE_LEN 2
 #define SEQ_LEN 8
@@ -30,7 +29,6 @@ namespace NS_PROTOCOL_MODULE
     };
 
 
-    using namespace NS_CONNECTIOM_MODULE;
     using namespace NS_LOGGER_MUDULE;
 
     class Message
@@ -225,7 +223,6 @@ namespace NS_PROTOCOL_MODULE
 
         static std::string _version;
     private:
-        ConnectionManager _connections;
         handler_msg_t _handler_msg;
     };
     inline std::string Protocol::_version = "0.1.0";

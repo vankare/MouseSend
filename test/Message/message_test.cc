@@ -1,8 +1,8 @@
-#include "../Protocol.hpp"
+#include "../../Message/Message.hpp"
 #include <gtest/gtest.h>
 #include <cstdint>
 #include <cstring>
-using namespace NS_PROTOCOL_MODULE;
+using namespace NS_MESSAGE_MODULE;
 
 static std::vector<char> MakeSerializedMessage(
         uint16_t type, uint64_t seq, const std::string& data
@@ -25,7 +25,7 @@ static Message MakeDeserializedMessage(
     return msg;
 }
 
-namespace  NS_PROTOCOL_MODULE
+namespace  NS_MESSAGE_MODULE
 {
     bool operator==(const Message& m1, const Message& m2)
     {
