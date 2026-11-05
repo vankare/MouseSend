@@ -9,10 +9,6 @@
 
 namespace NS_CONNECTIOM_MODULE
 {
-    // 最大失败次数
-    const int g_max_fails = 3;
-    // 超时, 默认5000毫秒
-    const std::chrono::milliseconds g_timeout(5000);
 
     using namespace NS_SOCKET_MODULE;
     struct Connection
@@ -35,6 +31,11 @@ namespace NS_CONNECTIOM_MODULE
         int Recv(std::vector<char>* recv_buf)
         {
             return _sockfd->Recv(recv_buf, nullptr);
+        }
+
+        bool RecvTimeOut(const std::chrono::milliseconds& ms)
+        {
+            return _sockfd->SetRecvTimeout(ms);
         }
 
         std::shared_ptr<Socket> _sockfd;

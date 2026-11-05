@@ -10,9 +10,13 @@
 *.exe
 *.out
 
-# 可执行文件（无扩展名的编译产物）
-Comm/test/client
-Comm/test/server
+# 测试文件（无扩展名的编译产物）
+**/test/*
+!**/test/*.cc
+!**/test/*.hpp
+!**/test/*.h
+!**/test/*.c
+!**/test/Makefile
 
 # 构建目录
 build/
@@ -20,6 +24,7 @@ bin/
 obj/
 dist/
 out/
+tmp/
 
 # Makefile 相关
 *.d
@@ -59,6 +64,3 @@ Thumbs.db
 node_modules/
 vendor/
 *.lock
-
-# 运行时生成（可选，按需保留）
-# Comm/test/*.txt

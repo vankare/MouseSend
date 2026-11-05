@@ -25,6 +25,8 @@ namespace NS_PROTOCOL_MODULE
     const uint64_t g_init_recv_buf_size = 40960;   // 预开辟接收缓冲区大小
     const uint64_t g_chunk_size = 4096;   // 分片大小
     const uint16_t g_win_size = 4;        // 窗口大小
+    const int g_max_fails = 3;            // // 最大失败次数
+    const std::chrono::milliseconds g_timeout(5000); // // 超时, 默认5000毫秒
     struct PendingPacket
     {
         PendingPacket(std::vector<char>&& send_buf)
@@ -102,15 +104,17 @@ namespace NS_PROTOCOL_MODULE
 
             std::vector<char> recv_vec;
 
+            // 4. 设置套接字超时时间
+            _conn.RecvTimeOut(g_timeout);
             LOG(LogLevel::INFO) << "分片、封装报文完成, 即将开始发送工作"; 
             for(uint64_t i = 0; i < messages.size(); ++i)
             {
-                // 4. 当窗口大小小于规定大小时，入窗口
+                // 5. 当窗口大小小于规定大小时，入窗口
                 std::vector<char> send_vec;
                 messages[i].Serializate(&send_vec);
                 window.emplace(messages[i].GetSeq(), PendingPacket(std::move(send_vec)));
 
-                // 5. 当窗口大小等于规定大小或者是最后一个请求，发送全部请求
+                // 6. 当窗口大小等于规定大小或者是最后一个请求，发送全部请求
                 if(window.size() == g_win_size || i == messages.size() - 1)
                 {
                     for(auto& [_, packet] : window)
@@ -127,7 +131,6 @@ namespace NS_PROTOCOL_MODULE
                         }
                     }
 
-                    // 6. 接收所有的响应
                     while(!window.empty())
                     {
                         int n = _conn.Recv(&recv_vec);

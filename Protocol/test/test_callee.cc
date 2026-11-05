@@ -8,7 +8,7 @@ TEST(Strategy, CalleeStrategy)
     CalleeStrategy callee(
         [](const std::vector<char>& data) ->std::vector<char>
         {
-            std::ofstream ofs("recv.txt");
+            std::ofstream ofs("test_callee.txt");
             if(!ofs.is_open())
             {
                 std::cerr << "ifstream err" << std::endl;
