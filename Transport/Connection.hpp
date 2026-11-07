@@ -2,7 +2,7 @@
 #include <chrono>
 #include <memory>
 #include "../Net/Socket.hpp"
-namespace NS_CONNECTIOM_MODULE
+namespace NS_CONNECTION_MODULE
 {
     using namespace NS_SOCKET_MODULE;
     struct Connection

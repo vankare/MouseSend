@@ -29,6 +29,21 @@ public:
         _addr.sin_port = htons(port);
     }
 
+    // 由一个字符串 "127.0.0.1:8080" 格式转 InetAddr
+    InetAddr(const std::string& addr_str)
+    {
+        size_t pos = addr_str.find('&');
+        if(pos == std::string::npos)
+        {
+            return;
+        }
+
+        std::string ip = addr_str.substr(0, pos);
+        std::string port = addr_str.substr(pos + 1);
+        InetAddr addr(ip, static_cast<uint16_t>(std::stoul(port)));
+        *this = addr;
+    }
+
     InetAddr(const sockaddr_in& addr)
     {
         _addr = addr;
@@ -62,7 +77,7 @@ public:
 
     std::string ToString() const 
     {
-        return _ip + std::to_string(_port);
+        return _ip + ":" + std::to_string(_port);
     }
 private:
     sockaddr_in _addr;

@@ -1,4 +1,5 @@
 #pragma once
+#include "../Net/InetAddr.hpp"
 #include "../Net/Logger.hpp"
 #include <cstddef>
 #include <cstdint>
@@ -25,7 +26,8 @@ namespace NS_MESSAGE_MODULE
         HANDSHAKE1st,
         HANDSHAKE2nd,
         HANDSHAKE3rd,
-        ERROR
+        ERROR,
+        CONNECT
     };
 
 
@@ -179,13 +181,13 @@ namespace NS_MESSAGE_MODULE
         std::vector<char> _payload;
     };
 
-    using handler_msg_t = std::function<Message(Message)>;
+    using handler_msg_t = std::function<Message(Message, const InetAddr&)>;
 
     class Protocol
     {
     public:
         // 处理一个请求, 并返回一个应答
-        std::vector<char> ParseProtocol(std::vector<char>& req_vec)
+        std::vector<char> ParseProtocol(std::vector<char>& req_vec, const InetAddr& peer)
         {
             Message req;
             bool success = req.Deserializate(req_vec);
@@ -195,7 +197,7 @@ namespace NS_MESSAGE_MODULE
                 return std::vector<char>();
             }
 
-            Message resp = _handler_msg(req);
+            Message resp = _handler_msg(req, peer);
 
             std::vector<char> resp_vec;
             success = resp.Serializate(&resp_vec);

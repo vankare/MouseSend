@@ -1,4 +1,5 @@
 #pragma once
+#include <string>
 #include <vector>
 #include <chrono>
 #include "../Net/Logger.hpp"
@@ -7,9 +8,10 @@
 
 namespace NS_STRATEGY_MODULE
 {
-    using namespace NS_CONNECTIOM_MODULE;
+    using namespace NS_CONNECTION_MODULE;
     using namespace NS_LOGGER_MUDULE;
     using namespace NS_MESSAGE_MODULE;
+    const char g_token = '&';
 
     const std::chrono::milliseconds g_timeout(5000); // // 超时, 默认5000毫秒
     const int g_max_fails = 3;            // // 最大失败次数
@@ -74,9 +76,11 @@ namespace NS_STRATEGY_MODULE
         }
 
     public:
-        CallerStrategy(const Connection& conn)
-            :_conn(conn)
-        {  }
+        CallerStrategy(const std::string& signal_ip, uint16_t signal_port)
+            :_signal_conn("signal", {signal_ip, signal_port})
+            { 
+                _signal_conn.RecvTimeOut(g_timeout);
+            }
 
         bool StartSend(const std::vector<char>& data)
         {
@@ -168,7 +172,79 @@ namespace NS_STRATEGY_MODULE
             }
             return true;
         }
+
+        bool ConnectSignal()
+        {
+            Message connect_msg(CONNECT, 0, std::vector<char>());
+            std::vector<char> connect_vec;
+            connect_msg.Serializate(&connect_vec);
+            for(int i = 0; i < g_max_fails; ++i)
+            {
+                _signal_conn.Send(connect_vec);
+                std::vector<char> recv_vec;
+                int n = _signal_conn.Recv(&recv_vec);
+                {
+                    if(n > 0)
+                    {
+                        Message msg;
+                        msg.Deserializate(recv_vec);
+                        if(msg.GetType() == CONNECT)
+                        {
+                            LOG(LogLevel::INFO) << "成功连接上信令服务器";
+                            return true;
+                        }
+                    }
+                }
+            }
+            LOG(LogLevel::ERRNO) << "无法连接上信令服务器";
+            return false;
+        }
+
+        /*
+         * 上线功能: 获取callee地址
+         * self_id: 自己id
+         * caller_id: 实际接收数据的对端服务器id
+         * signal_ip: 信令服务器ip
+         * signal_port: 信令服务器port
+         */
+        bool GetCalleeAddr(const std::string& self_id, const std::string& callee_id)
+        {
+            // 构造报文有效载荷: self_id&callee_id
+            std::string payload = self_id + g_token + callee_id;
+            Message two_id_msg(SIGNAL, 0, std::vector<char>(payload.begin(), payload.end()));
+            std::vector<char> id_vec;
+            two_id_msg.Serializate(&id_vec);
+
+
+            _signal_conn.RecvTimeOut(g_timeout);
+            for(int i = 0; i < g_max_fails; ++i)
+            {
+                _signal_conn.Send(id_vec);
+                std::vector<char> from_server;
+                int n = _signal_conn.Recv(&from_server);
+                {
+                    if(n > 0)
+                    {
+                        Message msg;
+                        msg.Deserializate(from_server);
+                        if(msg.GetType() == SIGNAL)
+                        {
+                            std::vector<char> callee_addr = msg.GetPayload();
+                            auto token_pos = std::find(callee_addr.begin(), callee_addr.end(), g_token);
+                            std::string callee_ip(callee_addr.begin(), token_pos);
+                            std::string callee_port(std::string(token_pos + 1, callee_addr.end()));
+                            _conn = Connection(callee_id, {callee_ip, static_cast<uint16_t>(std::stoul(callee_port))});
+                            LOG(LogLevel::INFO) << "获取callee地址";
+                            return true;
+                        }
+                    }
+                }
+            }
+            LOG(LogLevel::ERRNO) << "无法获取callee地址";
+            return false;
+        }
     private:
-        Connection _conn;     // 对端连接
+        Connection _conn;        // 对端连接
+        Connection _signal_conn; // 信令服务器
     };
 }

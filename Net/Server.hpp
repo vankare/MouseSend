@@ -13,7 +13,7 @@ namespace NS_SERVER_MODULE
 {
     using namespace NS_LOGGER_MUDULE;
     using namespace NS_SOCKET_MODULE;
-    using handler_t = std::function<std::vector<char>(std::vector<char>&)>;
+    using handler_t = std::function<std::vector<char>(std::vector<char>&, const InetAddr& peer)>;
     class Server
     {
     public:
@@ -65,7 +65,7 @@ namespace NS_SERVER_MODULE
             std::vector<char> send_buf;
             uint64_t status = 0;
             InetAddr target;
-            send_buf = _handler(recv_buf);
+            send_buf = _handler(recv_buf, addr);
             if(!send_buf.empty())
             {
                 int n = _udpfd->Send(send_buf, target);
