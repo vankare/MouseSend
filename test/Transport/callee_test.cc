@@ -2,20 +2,16 @@
 #include <fstream>
 #include <functional>
 #include <gtest/gtest.h>
+#include "../../Net/Util.hpp"
+using namespace NS_UTIL_MODULE;
+
+
 using namespace NS_STRATEGY_MODULE;
 
-std::function<std::vector<char>(const std::vector<char>&)> handler_data = 
-[](const std::vector<char>& data) ->std::vector<char>
+std::function<void(const std::vector<char>&)> handler_data = 
+[](const std::vector<char>& data)
 {
-    std::ofstream ofs("test_callee.txt");
-    if(!ofs.is_open())
-    {
-        std::cerr << "ifstream err" << std::endl;
-    }
-
-    ofs.write(data.data(), data.size());
-
-    return std::vector<char>();
+    FileUtil::WriteFile("test_out.bin", data);
 };
 
 /*
@@ -24,13 +20,13 @@ std::function<std::vector<char>(const std::vector<char>&)> handler_data =
 TEST(Strategy, CalleeStrategy2)
 {
     CalleeStrategy callee(
+        "callee",
         "127.0.0.1",
         8888,
-        handler_data,
-        3000
+        handler_data
     );
 
-    callee.ConnectSignal("callee");
+    callee.ConnectSignal();
     callee.StartRecv();
 }
 

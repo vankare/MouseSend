@@ -11,7 +11,8 @@ namespace NS_STRATEGY_MODULE
     using namespace NS_CONNECTION_MODULE;
     using namespace NS_LOGGER_MUDULE;
     using namespace NS_MESSAGE_MODULE;
-    const char g_token = '&';
+    const char g_ip_port_sep = ':';    // 例如: "127.0.0.1:8888"
+    const char g_two_id_sep = '&';
 
     const std::chrono::milliseconds g_timeout(5000); // // 超时, 默认5000毫秒
     const int g_max_fails = 3;            // // 最大失败次数
@@ -49,7 +50,7 @@ namespace NS_STRATEGY_MODULE
                 uint64_t end = std::min(i + chunk_size, data.size());
 
                 chunks.push_back( std::vector<char>(data.begin() + i, data.begin() + end));
-                i += end;
+                i += chunk_size;
             }
             return chunks;
         }
@@ -65,21 +66,21 @@ namespace NS_STRATEGY_MODULE
             if(chunks.size() == 1)
             {
                 messages.emplace_back(FIN, 0, std::move(chunks[0]));
-
             }
             else
             {
-                messages.emplace_back(FIN,  (messages.back().GetSeq()) + chunks[0].size(), std::move(chunks.back()));
+                messages.emplace_back(FIN, (messages.back().GetSeq()) + chunks[0].size(), std::move(chunks.back()));
             }
 
             return messages;
         }
 
     public:
-        CallerStrategy(const std::string& signal_ip, uint16_t signal_port)
+        CallerStrategy(const std::string& self_id, const std::string& signal_ip, uint16_t signal_port)
             :_signal_conn("signal", {signal_ip, signal_port})
+            ,_self_id(self_id)
             { 
-                _signal_conn.RecvTimeOut(g_timeout);
+                 _signal_conn.RecvTimeOut(g_timeout);
             }
 
         bool StartSend(const std::vector<char>& data)
@@ -92,7 +93,6 @@ namespace NS_STRATEGY_MODULE
 
             // 3. 创建窗口(下标: 包)
             std::unordered_map<uint64_t, PendingPacket> window;
-            std::mutex _mtx;
 
             std::vector<char> recv_vec;
 
@@ -109,7 +109,7 @@ namespace NS_STRATEGY_MODULE
                 // 6. 当窗口大小等于规定大小或者是最后一个请求，发送全部请求
                 if(window.size() == g_win_size || i == messages.size() - 1)
                 {
-                    for(auto& [_, packet] : window)
+                    for(auto& [seq, packet] : window)
                     {
                         std::unique_lock<std::mutex> lock(_mtx);
                         int n = _conn.Send(packet._send_buf);
@@ -119,7 +119,7 @@ namespace NS_STRATEGY_MODULE
                         }
                         else
                         {
-                            LOG(LogLevel::DEBUG) << "发送数据报成功, seq:";
+                            LOG(LogLevel::DEBUG) << "发送数据报成功, seq: " << seq;
                         }
                     }
 
@@ -134,7 +134,7 @@ namespace NS_STRATEGY_MODULE
 
                             for(auto& [seq, packet] : window)
                             {
-                                if(recv_msg.GetSeq() == seq && recv_msg.GetType() == ACK)
+                                if(recv_msg.GetSeq() == seq && (recv_msg.GetType() == ACK || recv_msg.GetType() == FIN))
                                 {
                                     LOG(LogLevel::INFO) << "收到一个数据报";
                                     window.erase(seq);
@@ -158,11 +158,17 @@ namespace NS_STRATEGY_MODULE
                                 {
                                     packet._tries++;
                                     packet._last_active_time = std::chrono::steady_clock::now();
+                                    int n = _conn.Send(packet._send_buf);
+                                    if(n > 0)
+                                    {
+                                        LOG(LogLevel::WARNING) << "超时重发一个数据报, seq: " << seq;
+                                    }
                                     continue;
                                 }
                                 // 没有达到最大失败次数，没有超时
                                 else
                                 {
+                                    packet._tries++;
                                     continue;
                                 }
                             }
@@ -173,9 +179,12 @@ namespace NS_STRATEGY_MODULE
             return true;
         }
 
+        /*
+         * 连接服务器
+         */
         bool ConnectSignal()
         {
-            Message connect_msg(CONNECT, 0, std::vector<char>());
+            Message connect_msg(CONNECT, 0, std::vector<char>(_self_id.begin(), _self_id.end()));
             std::vector<char> connect_vec;
             connect_msg.Serializate(&connect_vec);
             for(int i = 0; i < g_max_fails; ++i)
@@ -201,16 +210,13 @@ namespace NS_STRATEGY_MODULE
         }
 
         /*
-         * 上线功能: 获取callee地址
-         * self_id: 自己id
-         * caller_id: 实际接收数据的对端服务器id
-         * signal_ip: 信令服务器ip
-         * signal_port: 信令服务器port
+         * 获取callee地址
+         * callee_id: 实际接收数据的对端服务器id
          */
-        bool GetCalleeAddr(const std::string& self_id, const std::string& callee_id)
+        bool GetCalleeAddr(const std::string& callee_id)
         {
             // 构造报文有效载荷: self_id&callee_id
-            std::string payload = self_id + g_token + callee_id;
+            std::string payload = _self_id + g_two_id_sep + callee_id;
             Message two_id_msg(SIGNAL, 0, std::vector<char>(payload.begin(), payload.end()));
             std::vector<char> id_vec;
             two_id_msg.Serializate(&id_vec);
@@ -230,11 +236,11 @@ namespace NS_STRATEGY_MODULE
                         if(msg.GetType() == SIGNAL)
                         {
                             std::vector<char> callee_addr = msg.GetPayload();
-                            auto token_pos = std::find(callee_addr.begin(), callee_addr.end(), g_token);
+                            auto token_pos = std::find(callee_addr.begin(), callee_addr.end(), g_ip_port_sep);
                             std::string callee_ip(callee_addr.begin(), token_pos);
                             std::string callee_port(std::string(token_pos + 1, callee_addr.end()));
                             _conn = Connection(callee_id, {callee_ip, static_cast<uint16_t>(std::stoul(callee_port))});
-                            LOG(LogLevel::INFO) << "获取callee地址";
+                            LOG(LogLevel::INFO) << "获取callee地址" << callee_ip + ":" << callee_port;
                             return true;
                         }
                     }
@@ -246,5 +252,7 @@ namespace NS_STRATEGY_MODULE
     private:
         Connection _conn;        // 对端连接
         Connection _signal_conn; // 信令服务器
+        std::string _self_id;    // 自己的id
+        std::mutex _mtx;
     };
 }

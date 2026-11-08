@@ -8,11 +8,12 @@
 |------|--------------|------------------|------------------------|
 | 0x01 | SYN          | 是(ACK)          | 数据序列号             |
 | 0x02 | ACK          | 否               | 应答序列号             |
+| 0x03 | FIN          | 是(FIN)          | 断开连接               |
 | 0x04 | SIGNAL       | 是(SIGNAL)       | 获取对方地址           |
-| 0x05 | FIN          | 是(FIN)          | 断开连接               |
-| 0x06 | HANDSHAKE1st | 是(HANDSHAKE2nd) | 第一次握手             |
-| 0x07 | HANDSHAKE2nd | 是(HANDSHAKE3rd) | 第二次握手             |
-| 0x08 | HANDSHAKE3rd | 否               | 第三次握手             |
+| 0x05 | HANDSHAKE1st | 是(HANDSHAKE2nd) | 第一次握手             |
+| 0x06 | HANDSHAKE2nd | 是(HANDSHAKE3rd) | 第二次握手             |
+| 0x07 | HANDSHAKE3rd | 否               | 第三次握手             |
+| 0x08 | ERROR        | 否               | 无法处理的报文         |
 | 0x09 | CONNECT      | 是(CONNECT)      | 申请连接Signal Server  |
 
 `{{Type}}{{Seq}}{{Payload}}`

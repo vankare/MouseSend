@@ -35,7 +35,7 @@ namespace NS_SOCKET_MODULE
             return success;
         }
 
-        ~Socket()
+        virtual ~Socket()
         {
             close(_sockfd);
         }
@@ -102,8 +102,15 @@ namespace NS_SOCKET_MODULE
             socklen_t addr_len = sizeof(addr);
             int n = recvfrom(_sockfd, buf.data(), BUF_SIZE, 0, (sockaddr*)&addr, &addr_len);
             buf.erase(buf.begin() + n, buf.end());
-            out_data->resize(n);
-            *out_data = std::move(buf);
+            if(n > 0)
+            {
+                out_data->resize(n);
+                *out_data = std::move(buf);
+            }
+            else
+            {
+                std::cerr << "WARNING, 错过一个数据包" << std::endl;
+            }
             if(peer != nullptr)
             {
                 *peer = InetAddr(addr);

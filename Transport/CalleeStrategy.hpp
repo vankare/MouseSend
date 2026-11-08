@@ -9,7 +9,7 @@
 
 namespace NS_STRATEGY_MODULE
 {
-    using handler_data_t = std::function<std::vector<char>(std::vector<char>)>;
+    using handler_data_t = std::function<void(std::vector<char>)>;
     using namespace NS_CONNECTION_MODULE;
     class CalleeStrategy : public ServerStrategy
     {
@@ -20,29 +20,36 @@ namespace NS_STRATEGY_MODULE
          * handler_data: 处理数据方法 
          * callee_port: 自己监听端口 
          */
-        CalleeStrategy(const std::string& signal_ip, uint16_t signal_port, handler_data_t handler_data, uint16_t callee_port = 0)
-            :_signal_conn("signal", {signal_ip, signal_port})
-            ,ServerStrategy(callee_port)
+        CalleeStrategy(const std::string& self_id, const std::string& signal_ip, uint16_t signal_port, handler_data_t handler_data, uint16_t callee_port = 0)
+            :ServerStrategy(callee_port)
+            ,_signal_conn("signal", this->GetSockfd(), signal_ip, signal_port)
             ,_handler_data(handler_data)
+            ,_self_id(self_id)
         {  }
 
         Message Answer(Message in_msg, const InetAddr& peer_addr) override
         {
             Type type = static_cast<Type>(in_msg.GetType());
-            if(type != SYN || type != FIN)
+            if(!(type == SYN || type == FIN))
             {
                 return Message(ERROR, 0, std::vector<char>());
+            }
+            if(type == FIN)
+            {
+                _max_seq = in_msg.GetSeq();
             }
             auto&& payload =  in_msg.GetPayload();
             uint64_t seq = in_msg.GetSeq();
 
             _seqs.insert(seq);
-            _data.resize(seq + payload.size());
+            size_t new_size = std::max(seq+ payload.size(), _data.size());
+            _data.resize(new_size);
 
             memcpy(_data.data() + seq, payload.data(), payload.size());
 
             if(IsFinish())
             {
+                Stop();
                 _handler_data(_data);
                 return Message(FIN, seq, std::vector<char>());
             }
@@ -50,13 +57,11 @@ namespace NS_STRATEGY_MODULE
         }
 
         /*
-         * self_id: 自己id
-         * signal_ip: 信令服务器ip
-         * signal_port: 信令服务器端口
+         * 连接服务器
          */
-        bool ConnectSignal(const std::string& self_id)
+        bool ConnectSignal()
         {
-            Message connect_msg(CONNECT, 0, std::vector<char>(self_id.begin(), self_id.end()));
+            Message connect_msg(CONNECT, 0, std::vector<char>(_self_id.begin(), _self_id.end()));
             std::vector<char> conn_vec;
             connect_msg.Serializate(&conn_vec);
 
@@ -90,7 +95,7 @@ namespace NS_STRATEGY_MODULE
                 return false;
             }
             
-            if(_seqs.size() <= 2 && *_seqs.rbegin() == _max_seq)
+            if(_seqs.size() == 1 && _max_seq != ULLONG_MAX)
             {
                 return true;
             }
@@ -111,6 +116,7 @@ namespace NS_STRATEGY_MODULE
         std::set<uint64_t> _seqs;
         handler_data_t _handler_data;        // 处理数据方法(外部注册)
         uint64_t _max_seq = ULLONG_MAX;
+        std::string _self_id;                // 自己id
         Connection _signal_conn;
     };
 }

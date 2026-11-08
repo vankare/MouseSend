@@ -1,6 +1,6 @@
 #pragma once
 #include <chrono>
-#include <memory>
+#include <sys/socket.h>
 #include "../Net/Socket.hpp"
 namespace NS_CONNECTION_MODULE
 {
@@ -17,6 +17,12 @@ namespace NS_CONNECTION_MODULE
             _sockfd->BuildUdpClient();
         }
 
+        Connection(const std::string& id, Socket* const sockfd, const std::string& ip, uint16_t port)
+            :_id(id)
+            ,_sockfd(sockfd)
+            ,_addr(ip, port)
+        {  }
+
         int Send(std::vector<char> send_buf)
         {
             return _sockfd->Send(send_buf, _addr);
@@ -32,7 +38,7 @@ namespace NS_CONNECTION_MODULE
             return _sockfd->SetRecvTimeout(ms);
         }
 
-        std::shared_ptr<Socket> _sockfd;
+        Socket* _sockfd;
         InetAddr _addr;
         std::string _id;
     };

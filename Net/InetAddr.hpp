@@ -40,7 +40,9 @@ public:
 
         std::string ip = addr_str.substr(0, pos);
         std::string port = addr_str.substr(pos + 1);
-        InetAddr addr(ip, static_cast<uint16_t>(std::stoul(port)));
+        _ip = ip;
+        _port = static_cast<uint16_t>(std::stoul(port));
+        InetAddr addr(_ip, _port);
         *this = addr;
     }
 

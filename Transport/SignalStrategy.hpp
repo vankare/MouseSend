@@ -9,11 +9,11 @@ namespace NS_STRATEGY_MODULE
 {
     using namespace NS_CONNECTION_MODULE;
 
-    const char g_token = '&';
+    const char g_two_id_sep = '&';
     class SignalStrategy : public ServerStrategy
     {
     public:
-        SignalStrategy(uint16_t port = 0)
+        SignalStrategy(uint16_t port)
             :ServerStrategy(port)
         {  }
 
@@ -26,7 +26,12 @@ namespace NS_STRATEGY_MODULE
                 // 处理获取对方连接的请求
                 case SIGNAL:
                 {
-                    auto token_pos = std::find(data.begin(), data.end(), g_token);
+                    /*
+                     * 有效载荷:
+                     * self_id&peer_id
+                     */
+
+                    auto token_pos = std::find(data.begin(), data.end(), g_two_id_sep);
                     if(token_pos == data.end())
                     {
                         LOG(LogLevel::DEBUG) << "处理获取对方地址请求失败: 不存在id分隔符";
@@ -54,16 +59,21 @@ namespace NS_STRATEGY_MODULE
                 // 处理连接信令服务器的请求
                 case CONNECT:
                 {
+                    /*
+                     * 有效载荷:
+                     * self_id
+                     */
                     std::string id(data.begin(), data.end());
                     bool success = HandlerConnect(id, addr);
                     if(!success)
                     {
                         ret_msg.SetType(ERROR);
-                        LOG(LogLevel::DEBUG) << "处理连接请求失败: peer_addr" << addr.ToString();
+                        LOG(LogLevel::DEBUG) << "处理连接请求失败,id:" + id + 
+                            "\ttpeer_addr:" << addr.ToString();
                         break;
                     }
                     ret_msg.SetType(CONNECT);
-                    LOG(LogLevel::DEBUG) << "成功接收到一个连接请求";
+                    LOG(LogLevel::DEBUG) << "处理一个连接请求";
                     break;
                 }
                 // 处理断开连接的请求

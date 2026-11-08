@@ -3,11 +3,11 @@
 #include "../Net/Logger.hpp"
 #include "../Net/Socket.hpp"
 #include <cstdint>
-#include <memory>
 #include "../Net/InetAddr.hpp"
 #include <sys/socket.h>
 #include <functional>
 #include <utility>
+#include <atomic>
 
 namespace NS_SERVER_MODULE
 {
@@ -19,6 +19,7 @@ namespace NS_SERVER_MODULE
     public:
         Server(uint16_t port)
             :_udpfd(new UdpSocket)
+            ,_running(false)
         {
             bool success =_udpfd->BuildUdpServer(port);
             if(!success)
@@ -26,6 +27,11 @@ namespace NS_SERVER_MODULE
                 LOG(LogLevel::FATAL) << "服务器构建失败";
             }
             LOG(LogLevel::DEBUG) << "服务器构建成功";
+        }
+
+        ~Server()
+        {
+            delete _udpfd;
         }
 
         bool Register(const handler_t& handler)
@@ -42,7 +48,8 @@ namespace NS_SERVER_MODULE
 
         void Loop()
         {
-            while(true)
+            _running = true;
+            while(_running)
             {
                 std::vector<char> recv_buf;
                 InetAddr peer;
@@ -58,17 +65,26 @@ namespace NS_SERVER_MODULE
                 }
             }
         }
+
+        void Stop()
+        {
+            _running = false;
+        }
+
+        Socket* Get()
+        {
+            return _udpfd;
+        }
+
     private:
         bool Service(std::vector<char> recv_buf, const InetAddr& addr)
         {
             // udp 传输层缓冲区为数据报，没有数据拆分，不用循环读
             std::vector<char> send_buf;
-            uint64_t status = 0;
-            InetAddr target;
             send_buf = _handler(recv_buf, addr);
             if(!send_buf.empty())
             {
-                int n = _udpfd->Send(send_buf, target);
+                int n = _udpfd->Send(send_buf, addr);
                 if(n > 0)
                 {
                     LOG(LogLevel::INFO) << "成功处理一条请求";
@@ -79,6 +95,7 @@ namespace NS_SERVER_MODULE
         }
     private:
         handler_t _handler;
-        std::unique_ptr<Socket> _udpfd;
+        Socket* _udpfd;
+        std::atomic_bool _running;
     };
 }

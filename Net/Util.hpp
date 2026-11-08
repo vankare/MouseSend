@@ -1,6 +1,7 @@
 #pragma once
 
 #include <fstream>
+#include <ios>
 #include <string>
 #include <sys/stat.h>
 #include <ctime>
@@ -82,35 +83,34 @@ namespace NS_UTIL_MODULE
             return time + "_" + uniuq_id;
         }
 
-        static bool WriteFile(const std::string& filename, const std::string& content)
+        static bool WriteFile(const std::string& filename, const std::vector<char>& content)
         {
             std::ofstream out(filename, std::ios::out);
             if(!out.is_open())
             {
                 return false;
             }
-            out << content;
+            out.write(content.data(), content.size());
 
-            out.close();
             return true;
         }
-        static std::string ReadFile(const std::string& filename)
+        static std::vector<char> ReadFile(const std::string& filename)
         {
             std::ifstream in(filename, std::ios::in);
             if(!in.is_open())
             {
-                return "";
+                return std::vector<char>();
             }
 
-            std::string content;
-            std::string line;
-            while(std::getline(in, line))
-            {
-                content += line;
-                content += "\n";
-            }
-            
-            in.close();
+            std::vector<char> content;
+
+            in.seekg(0, std::ios::end);
+            size_t file_size = in.tellg();
+            in.seekg(0, std::ios::beg);
+
+            content.resize(file_size);
+            in.read(content.data(), file_size);
+
             return content;
         }
     };

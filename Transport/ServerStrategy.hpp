@@ -19,7 +19,7 @@ namespace NS_STRATEGY_MODULE
          * handler_data_t 处理业务数据
          */
 
-        ServerStrategy(uint16_t port = 0)
+        ServerStrategy(uint16_t port)
             :_svr(port)
         {  
             _svr.Register(
@@ -44,6 +44,16 @@ namespace NS_STRATEGY_MODULE
         void StartRecv()
         {
             _svr.Loop();
+        }
+
+        void Stop()
+        {
+            _svr.Stop();
+        }
+
+        Socket* GetSockfd()
+        {
+            return _svr.Get();
         }
 
         virtual Message Answer(Message in_msg, const InetAddr& peer_ddr) = 0;
