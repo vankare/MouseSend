@@ -25,16 +25,15 @@ namespace NS_CONNECTION_MODULE
         }
 
         // 关联两个连接
-        bool Relation(const std::string& sender, const std::string& recver)
+        bool Relation(const std::string& self_id, const std::string& peer_id)
         {
             std::unique_lock<std::mutex> lock(_mtx);
-            if(_connections.find(sender) == _connections.end() || _connections.find(recver) == _connections.end())
+            if(_connections.find(self_id) == _connections.end() || _connections.find(peer_id) == _connections.end())
             {
                 return false;
             }
 
-            _sender2recver.emplace(sender, recver);
-            _recver2sender.emplace(recver, sender);
+            _p2p.emplace(self_id, peer_id);
             return true;
         }
 
@@ -48,21 +47,15 @@ namespace NS_CONNECTION_MODULE
             }
 
             std::string other;
-            // id为sender
-            if(_sender2recver.find(id) != _sender2recver.end())
+            // id为self
+            if(_p2p.find(id) != _p2p.end())
             {
-                other = _sender2recver[id];
-                _sender2recver.erase(id);
-                _recver2sender.erase(other);
+                other = _p2p[id];
+                _p2p.erase(id);
+                _p2p.erase(other);
+                _connections.erase(id);
+                _connections.erase(other);
             }
-            // id为recver
-            else if(_recver2sender.find(id) != _recver2sender.end())
-            {
-                other = _recver2sender[id];
-                _recver2sender.erase(id);
-                _sender2recver.erase(other);
-            }
-            _connections.erase(id);
 
             return true;
         }
@@ -89,13 +82,9 @@ namespace NS_CONNECTION_MODULE
         std::string GetPeerById(const std::string& id)
         {
             std::unique_lock<std::mutex> lock(_mtx);
-            if(_sender2recver.find(id) != _sender2recver.end())
+            if(_p2p.find(id) != _p2p.end())
             {
-                return _sender2recver[id];
-            }
-            else if(_recver2sender.find(id) != _recver2sender.end())
-            {
-                return _recver2sender[id];
+                return _p2p[id];
             }
             else
             {
@@ -106,7 +95,6 @@ namespace NS_CONNECTION_MODULE
     private:
         std::unordered_map<std::string, Connection> _connections;
         std::mutex _mtx;
-        std::unordered_map<std::string, std::string> _sender2recver;
-        std::unordered_map<std::string, std::string> _recver2sender;
+        std::unordered_map<std::string, std::string> _p2p;
     };
 }

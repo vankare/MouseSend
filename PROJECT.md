@@ -15,6 +15,7 @@
 | 0x07 | HANDSHAKE3rd | 否               | 第三次握手             |
 | 0x08 | ERROR        | 否               | 无法处理的报文         |
 | 0x09 | CONNECT      | 是(CONNECT)      | 申请连接Signal Server  |
+| 0x0a | PUNCH        | 否               | 打洞报文               |
 
 `{{Type}}{{Seq}}{{Payload}}`
 

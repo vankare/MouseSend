@@ -4,7 +4,7 @@ using namespace NS_STRATEGY_MODULE;
 
 TEST(Strategy, SignalStrategy)
 {
-   SignalStrategy ss(8888);
+   SignalStrategy ss(4000);
    ss.StartRecv();
 }
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <cstring>
 #include <iostream>
 #include <string>
 #include <strings.h>
@@ -20,6 +21,7 @@ public:
         ,_ip(ip)
         ,_port(port)
     {
+        memset(&_addr, 0, sizeof(_addr));
         _addr.sin_family = AF_INET;
         int success = inet_aton(ip.c_str(), &_addr.sin_addr);
         if(success == 0)
@@ -32,11 +34,13 @@ public:
     // 由一个字符串 "127.0.0.1:8080" 格式转 InetAddr
     InetAddr(const std::string& addr_str)
     {
-        size_t pos = addr_str.find('&');
+        size_t pos = addr_str.find(':');
         if(pos == std::string::npos)
         {
             return;
         }
+
+        memset(&_addr, 0, sizeof(_addr));
 
         std::string ip = addr_str.substr(0, pos);
         std::string port = addr_str.substr(pos + 1);

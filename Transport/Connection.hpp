@@ -17,6 +17,7 @@ namespace NS_CONNECTION_MODULE
             _sockfd->BuildUdpClient();
         }
 
+        // 传入一个已有的套接字，不需要再创建套接字
         Connection(const std::string& id, Socket* const sockfd, const std::string& ip, uint16_t port)
             :_id(id)
             ,_sockfd(sockfd)
@@ -38,9 +39,13 @@ namespace NS_CONNECTION_MODULE
             return _sockfd->SetRecvTimeout(ms);
         }
 
+        std::string AddrStr() const
+        {
+            return _addr.ToString();
+        }
+
         Socket* _sockfd;
         InetAddr _addr;
         std::string _id;
     };
-
 }

@@ -15,20 +15,37 @@ std::function<void(const std::vector<char>&)> handler_data =
 };
 
 /*
- * 本测试中, callee 监听3000端口, signal_server 监听 8888
+ * 本测试中, callee 监听随机端口, signal_server 监听 4000 端口
  */
 TEST(Strategy, CalleeStrategy2)
 {
     CalleeStrategy callee(
         "callee",
-        "127.0.0.1",
-        8888,
+        "39.107.191.147",
+        4000,
         handler_data
     );
 
     callee.ConnectSignal();
+    callee.WaitForPeer("caller");
+    callee.HolePunching();
     callee.StartRecv();
 }
+
+//TEST(Strategy, LocalTest)
+//{
+//    CalleeStrategy callee(
+//        "callee",
+//        "127.0.0.1",
+//        4000,
+//        handler_data
+//    );
+//
+//    callee.ConnectSignal();
+//    callee.WaitForPeer("caller");
+//    callee.HolePunching();
+//    callee.StartRecv();
+//}
 
 int main(int argc, char* argv[])
 {

@@ -27,7 +27,8 @@ namespace NS_MESSAGE_MODULE
         HANDSHAKE2nd,
         HANDSHAKE3rd,
         ERROR,
-        CONNECT
+        CONNECT,
+        PUNCH
     };
 
 

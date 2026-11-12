@@ -1,7 +1,7 @@
 #pragma once
 #include "InetAddr.hpp"
 #include "Util.hpp"
-#include <asm-generic/socket.h>
+#include <sys/socket.h>
 #include <cstring>
 #include <utility>
 #include <vector>
@@ -101,17 +101,18 @@ namespace NS_SOCKET_MODULE
             sockaddr_in addr;
             socklen_t addr_len = sizeof(addr);
             int n = recvfrom(_sockfd, buf.data(), BUF_SIZE, 0, (sockaddr*)&addr, &addr_len);
-            buf.erase(buf.begin() + n, buf.end());
-            if(n > 0)
+            if(n <= 0)
             {
-                out_data->resize(n);
-                *out_data = std::move(buf);
+                if(peer)
+                {
+                    *peer = InetAddr(addr);
+                }
+                return n;
             }
-            else
-            {
-                std::cerr << "WARNING, 错过一个数据包" << std::endl;
-            }
-            if(peer != nullptr)
+            buf.resize(n);
+            out_data->resize(n);
+            *out_data = std::move(buf);
+            if(peer)
             {
                 *peer = InetAddr(addr);
             }

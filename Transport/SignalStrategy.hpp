@@ -45,7 +45,7 @@ namespace NS_STRATEGY_MODULE
                     bool success = HandlerSignal(self_id, peer_id, &peer_addr);
                     if(!success)
                     {
-                        LOG(LogLevel::DEBUG) << "处理获取对方地址请求失败: 回调失败" << addr.ToString();
+                        LOG(LogLevel::WARNING) << "处理获取对方地址请求失败: 回调失败" << addr.ToString();
                         ret_msg.SetType(ERROR);
                         break;
                     }
@@ -107,21 +107,21 @@ namespace NS_STRATEGY_MODULE
 
     private:
         // 传入两个id, 建立连接, 并返回对方地址
-        bool HandlerSignal(const std::string& sender_id, const std::string& recver_id, std::string* const out_addr)
+        bool HandlerSignal(const std::string& self_id, const std::string& peer_id, std::string* const out_addr)
         {
             if(out_addr == nullptr)
             {
                 return false;
             }
             Connection recv_conn;
-            bool success = _cm.GetConnById(recver_id, &recv_conn);
-            success &= _cm.Relation(sender_id, recver_id);
+            bool success = _cm.GetConnById(peer_id, &recv_conn);
+            success &= _cm.Relation(self_id, peer_id);
             if(!success)
             {
                 return false;
             }
 
-            *out_addr = recv_conn._addr.ToString();
+            *out_addr = recv_conn.AddrStr();
             return true;
         }
 
