@@ -24,9 +24,9 @@ namespace NS_SERVER_MODULE
             bool success =_udpfd->BuildUdpServer(port);
             if(!success)
             {
-                LOG(LogLevel::FATAL) << "服务器构建失败";
+                LOG(LogLevel::FATAL) << "基础服务器构建失败";
             }
-            LOG(LogLevel::DEBUG) << "服务器构建成功";
+            LOG(LogLevel::DEBUG) << "基础服务器构建成功";
         }
 
         ~Server()
@@ -39,10 +39,10 @@ namespace NS_SERVER_MODULE
             _handler = handler;
             if(!_handler)
             {
-                LOG(LogLevel::WARNING) << "注册处理方法失败";
+                LOG(LogLevel::WARNING) << "注册基础服务器处理方法失败";
                 return false;
             }
-            LOG(LogLevel::DEBUG) << "注册处理方法成功";
+            LOG(LogLevel::DEBUG) << "注册基础服务器处理方法成功";
             return true;
         }
 
@@ -58,10 +58,6 @@ namespace NS_SERVER_MODULE
                 if(n > 0)
                 {
                     Service(std::move(recv_buf), peer);
-                }
-                else
-                {
-                    LOG(LogLevel::ERRNO) << "接收数据失败";
                 }
             }
         }
@@ -87,7 +83,6 @@ namespace NS_SERVER_MODULE
                 int n = _udpfd->Send(send_buf, addr);
                 if(n > 0)
                 {
-                    LOG(LogLevel::INFO) << "成功处理一条请求";
                     return true;
                 }
             }

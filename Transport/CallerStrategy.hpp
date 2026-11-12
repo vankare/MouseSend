@@ -116,10 +116,6 @@ namespace NS_STRATEGY_MODULE
                         {
                             LOG(LogLevel::WARNING) << "尝试一次发送失败" << n;
                         }
-                        else
-                        {
-                            LOG(LogLevel::DEBUG) << "发送数据报成功, seq: " << seq;
-                        }
                     }
 
                     while(!window.empty())
@@ -135,7 +131,6 @@ namespace NS_STRATEGY_MODULE
                             {
                                 if(recv_msg.GetSeq() == seq && (recv_msg.GetType() == ACK || recv_msg.GetType() == FIN))
                                 {
-                                    LOG(LogLevel::INFO) << "收到一个数据报";
                                     window.erase(seq);
                                     break;
                                 }
@@ -177,8 +172,57 @@ namespace NS_STRATEGY_MODULE
             }
             return true;
         }
+
+        // 打洞: caller打洞，需要等待回复。
+        bool HolePunching() override
+        {
+            Message hole_msg(PUNCH, 0, std::vector<char>());
+            std::vector<char> hole_vec;
+            hole_msg.Serializate(&hole_vec);
+            bool ok = SendAndRecv(
+                hole_vec, 
+                PUNCH, 
+                _peer_conn,
+                [](std::vector<char>){},
+                10
+                );
+            if(ok)
+            {
+                LOG(LogLevel::INFO) << "打洞成功";
+            }
+            else
+            {
+                LOG(LogLevel::INFO) << "打洞失败";
+            }
+            return 0;
+        }
+
+        // 三次握手, 发起第一次, 接收第二次, 发起第三次
+        bool RequestHandshake() override
+        {
+            Message msg_1st(HANDSHAKE1st, 0, std::vector<char>(_sfile_name.begin(), _sfile_name.end()));
+            std::vector<char> buf_1st;
+            msg_1st.Serializate(&buf_1st);
+            bool ok = SendAndRecv(
+                buf_1st,
+                HANDSHAKE2nd,
+                _peer_conn, 
+                [](std::vector<char>){}
+            );
+
+            Message msg_3rd(HANDSHAKE3rd, 0, std::vector<char>());
+            std::vector<char> buf_3rd;
+            msg_3rd.Serializate(&buf_1st);
+            // 发起请求端发完, 就认为自己完成了3次握手
+            ok &= (_peer_conn.Send(buf_3rd) > 0);
+
+            _shake_hands_ok = true;
+            return ok;
+        }
+
     private:
         std::string _self_id;    // 自己的id
         std::mutex _mtx;
+        std::string _sfile_name; // 发送的文件名
     };
 }

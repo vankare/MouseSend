@@ -4,6 +4,8 @@
 #include "../Net/Socket.hpp"
 namespace NS_CONNECTION_MODULE
 {
+    using time_point_t = std::chrono::time_point<std::chrono::steady_clock>;
+    using millisecond_t = std::chrono::milliseconds;
     using namespace NS_SOCKET_MODULE;
     struct Connection
     {
@@ -34,7 +36,7 @@ namespace NS_CONNECTION_MODULE
             return _sockfd->Recv(recv_buf, nullptr);
         }
 
-        bool RecvTimeOut(const std::chrono::milliseconds& ms)
+        bool RecvTimeOut(const millisecond_t& ms)
         {
             return _sockfd->SetRecvTimeout(ms);
         }
@@ -47,5 +49,6 @@ namespace NS_CONNECTION_MODULE
         Socket* _sockfd;
         InetAddr _addr;
         std::string _id;
+        time_point_t _last_active_time;
     };
 }

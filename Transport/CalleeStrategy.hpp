@@ -58,11 +58,76 @@ namespace NS_STRATEGY_MODULE
                         return Message(FIN, seq, std::vector<char>());
                     }
                     ret_msg =  Message(Type::ACK, seq, std::vector<char>());
+                    break;
+                }
+                case PUNCH:
+                {
+                    ret_msg.SetType(PUNCH);
+                    break;
                 }
                 default:
                     break;
             }
             return ret_msg;
+        }
+
+        // 打洞: callee只需向caller发送一批报文, 无需等待回复, 直接进入StartRecv
+        bool HolePunching() override
+        {
+            Message hole_msg(PUNCH, 0, std::vector<char>());
+            std::vector<char> hole_vec;
+            hole_msg.Serializate(&hole_vec);
+            bool ok = false;
+            for(int i = 0; i < g_max_fails; ++i)
+                ok |= _peer_conn.Send(hole_vec);
+            if(ok)
+            {
+                LOG(LogLevel::INFO) << "打洞成功";
+            }
+            else
+            {
+                LOG(LogLevel::INFO) << "打洞失败";
+            }
+
+            return ok;
+        }
+
+        // 三次握手, 接收第一次, 发起第二次, 接收第三次
+        bool RequestHandshake() override
+        {
+            // 接收第一次握手请求
+            std::vector<char> buf_1st;
+            for(int i = 0; i < g_max_fails; ++i)
+            {
+                if(_peer_conn.Recv(&buf_1st) > 0)
+                {
+                    Message msg_1st;
+                    msg_1st.Deserializate(buf_1st);
+                    if(msg_1st.GetType() == HANDSHAKE2nd)
+                    {
+                        auto file_name = msg_1st.GetPayload();
+                        _rfile_name = std::string(file_name.begin(), file_name.end());
+                        goto two_three;
+                    }
+                }
+                std::this_thread::sleep_for(millisecond_t(500));
+            }
+            _shake_hands_ok = false;
+            return false;
+
+two_three:
+            // 发起第二次握手请求 和 接收第三次握手请求
+            Message msg_2nd(HANDSHAKE2nd, 0, std::vector<char>());
+            std::vector<char> buf_2nd; 
+            msg_2nd.Serializate(&buf_1st);
+            SendAndRecv(
+                buf_2nd, 
+                HANDSHAKE3rd,
+                _peer_conn,
+                [](std::vector<char>){ }
+            );
+            _shake_hands_ok = true;
+            return true;
         }
 
     private:
@@ -95,5 +160,6 @@ namespace NS_STRATEGY_MODULE
         handler_data_t _handler_data;        // 处理数据方法(外部注册)
         uint64_t _max_seq = ULLONG_MAX;
         Connection _signal_conn;
+        std::string _rfile_name;             // recv到的文件名
     };
 }

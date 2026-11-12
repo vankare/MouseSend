@@ -20,15 +20,15 @@ namespace NS_STRATEGY_MODULE
 
     class ClientStrategy
     {
-    private:
+    protected:
 
         bool SendAndRecv(const std::vector<char>& send_buf,
                 Type expect_type,
                 Connection& conn,
                 handler_send_recv_t handler,
                 int max_tries                  = g_max_fails,   // 默认 3
-                millisecond_t interval         = g_timeout,     // 默认 2000ms
-                millisecond_t  recv_timeout    = g_timeout)     // 默认 2000ms
+                millisecond_t interval         = g_timeout,     // 默认 500ms
+                millisecond_t  recv_timeout    = g_timeout)     // 默认 500ms
         {
             conn.RecvTimeOut(recv_timeout);
 
@@ -135,36 +135,17 @@ namespace NS_STRATEGY_MODULE
             return success;
         }
 
-        bool HolePunching()
-        {
-            Message punch_msg(PUNCH, 0, std::vector<char>());
-            std::vector<char> punch_vec;
-            punch_msg.Serializate(&punch_vec);
-
-            bool success = SendAndRecv(punch_vec, PUNCH, _peer_conn,
-                [](const std::vector<char>&) {  },
-                10,
-                millisecond_t(300),
-                millisecond_t(300)
-            );
-
-            if(success)
-            {
-                LOG(LogLevel::INFO) << "打洞成功" << _peer_conn.AddrStr();
-            }
-            else
-            {
-                LOG(LogLevel::ERRNO) << "打洞失败";
-            }
-            return success;
-        }
-
+        // 打洞逻辑
+        virtual bool HolePunching() = 0;
+        // 三次握手逻辑
+        virtual bool RequestHandshake() = 0;
 
     protected:
-        Socket* _real_socket;
-        Connection _signal_conn;
+        Socket* _real_socket;               // 真实套接字 _signal_conn, _peer_conn 共用(端口受限锥形必须共用)
+        Connection _signal_conn; 
         Connection _peer_conn;
-        std::string _self_id;
-        bool _own;
+        std::string _self_id;               // 自己id
+        bool _own;                          // 套接字是类创建的还是外部传来的
+        bool _shake_hands_ok;               // 三次握手是否成功
     };
 }
