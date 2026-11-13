@@ -1,5 +1,5 @@
 #pragma once
-#include "../Net/Server.hpp"
+#include "../Net/UdpServer.hpp"
 #include <vector>
 #include <cstdint>
 #include "../Message/Message.hpp"
@@ -8,7 +8,7 @@
 namespace NS_STRATEGY_MODULE 
 {
     using namespace NS_MESSAGE_MODULE;
-    using namespace NS_SERVER_MODULE;
+    using namespace NS_UDP_SERVER_MODULE;
     const uint64_t g_init_recv_buf_size = 40960;   // 预开辟接收缓冲区大小
     class ServerStrategy
     {
@@ -20,9 +20,9 @@ namespace NS_STRATEGY_MODULE
          */
 
         ServerStrategy(uint16_t port)
-            :_svr(port)
+            :_udp_svr(port)
         {  
-            _svr.Register(
+            _udp_svr.Register(
                 [this](std::vector<char> req, const InetAddr& peer) -> std::vector<char>
                 {
                     return this->_protocol.ParseProtocol(req, peer);
@@ -43,22 +43,22 @@ namespace NS_STRATEGY_MODULE
 
         void StartRecv()
         {
-            _svr.Loop();
+            _udp_svr.Loop();
         }
 
         void Stop()
         {
-            _svr.Stop();
+            _udp_svr.Stop();
         }
 
         Socket* GetSockfd()
         {
-            return _svr.Get();
+            return _udp_svr.Get();
         }
 
         virtual Message Answer(Message in_msg, const InetAddr& peer_ddr) = 0;
     protected:
-        Server _svr;                         // 基础服务器
+        UdpServer _udp_svr;                         // 基础服务器
         Protocol _protocol;                  // 协议
         std::vector<char> _data;             // 接收到的数据
     };

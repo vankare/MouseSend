@@ -131,5 +131,9 @@ namespace NS_UTIL_MODULE
             }
             vec->push_back(str.substr(prev));
         }
+        static std::string UniqueString()
+        {
+            return TimeUtil::GetTimeMs();
+        }
     };
 }

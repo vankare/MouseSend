@@ -15,7 +15,7 @@ namespace NS_STRATEGY_MODULE
     using namespace NS_MESSAGE_MODULE;
     const char g_ip_port_sep = ':';    // 例如: "127.0.0.1:8888"
 
-    const uint64_t g_chunk_size = 4096;   // 分片大小
+    const uint64_t g_chunk_size = 8192;   // 分片大小
     const uint16_t g_win_size = 4;        // 窗口大小
     struct PendingPacket
     {

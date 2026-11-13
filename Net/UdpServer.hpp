@@ -9,15 +9,15 @@
 #include <utility>
 #include <atomic>
 
-namespace NS_SERVER_MODULE
+namespace NS_UDP_SERVER_MODULE
 {
     using namespace NS_LOGGER_MUDULE;
     using namespace NS_SOCKET_MODULE;
     using handler_t = std::function<std::vector<char>(std::vector<char>&, const InetAddr& peer)>;
-    class Server
+    class UdpServer
     {
     public:
-        Server(uint16_t port)
+        UdpServer(uint16_t port)
             :_udpfd(new UdpSocket)
             ,_running(false)
         {
@@ -29,7 +29,7 @@ namespace NS_SERVER_MODULE
             LOG(LogLevel::DEBUG) << "基础服务器构建成功";
         }
 
-        ~Server()
+        ~UdpServer()
         {
             delete _udpfd;
         }

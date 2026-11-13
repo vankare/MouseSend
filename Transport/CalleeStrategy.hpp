@@ -25,7 +25,7 @@ namespace NS_STRATEGY_MODULE
          */
         CalleeStrategy(const std::string& self_id, const std::string& signal_ip, uint16_t signal_port, handler_data_t handler_data, uint16_t callee_port = 0)
             :ServerStrategy(callee_port)
-            ,ClientStrategy("signal", self_id, signal_ip, signal_port, _svr.Get())
+            ,ClientStrategy("signal", self_id, signal_ip, signal_port, _udp_svr.Get())
             ,_handler_data(handler_data)
         {  }
 
@@ -114,44 +114,6 @@ namespace NS_STRATEGY_MODULE
             return ok;
         }
 
-//        // 三次握手, 接收第一次, 发起第二次, 接收第三次
-//        bool RequestHandshake() override
-//        {
-//            // 接收第一次握手请求
-//            std::vector<char> buf_1st;
-//            for(int i = 0; i < g_max_fails; ++i)
-//            {
-//                if(_peer_conn.Recv(&buf_1st) > 0)
-//                {
-//                    Message msg_1st;
-//                    msg_1st.Deserializate(buf_1st);
-//                    if(msg_1st.GetType() == HANDSHAKE1st)
-//                    {
-//                        auto file_name = msg_1st.GetPayload();
-//                        _rfile_name = std::string(file_name.begin(), file_name.end());
-//                        goto two_three;
-//                    }
-//                }
-//                std::this_thread::sleep_for(millisecond_t(500));
-//            }
-//            _shake_hands_ok = false;
-//            return false;
-//
-//two_three:
-//            // 发起第二次握手请求 和 接收第三次握手请求
-//            Message msg_2nd(HANDSHAKE2nd, 0, std::vector<char>());
-//            std::vector<char> buf_2nd; 
-//            msg_2nd.Serializate(&buf_2nd);
-//            bool ok = SendAndRecv(
-//                buf_2nd, 
-//                HANDSHAKE3rd,
-//                _peer_conn,
-//                [](std::vector<char>){ }
-//            );
-//            _shake_hands_ok = ok;
-//            return ok;
-//        }
-//
     private:
         bool IsFinish()
         {
