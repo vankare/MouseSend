@@ -84,6 +84,12 @@ namespace NS_STRATEGY_MODULE
 
         bool StartSend(const std::vector<char>& data)
         {
+            if(_phase != PHASE_FOUR)
+            {
+                // 还没有完成四次握手
+                return false;
+            }
+
             // 1. 分片
             auto chunks = MakeChunk(data);
 
@@ -197,9 +203,10 @@ namespace NS_STRATEGY_MODULE
             return 0;
         }
 
-        // 三次握手, 发起第一次, 接收第二次, 发起第三次
-        bool RequestHandshake() override
+        // 四次握手, 发起第一次, 接收第二次, 发起第三次, 接收第四次
+        bool RequestHandshake()
         {
+            // 发送第一次握手请求 和 接收第二次握手请求
             Message msg_1st(HANDSHAKE1st, 0, std::vector<char>(_sfile_name.begin(), _sfile_name.end()));
             std::vector<char> buf_1st;
             msg_1st.Serializate(&buf_1st);
@@ -209,14 +216,26 @@ namespace NS_STRATEGY_MODULE
                 _peer_conn, 
                 [](std::vector<char>){}
             );
+            if(ok)
+            {
+                _phase = PHASE_TWO;
+            }
 
+            // 发送第三次握手请求 和 接收第四次握手请求
             Message msg_3rd(HANDSHAKE3rd, 0, std::vector<char>());
             std::vector<char> buf_3rd;
-            msg_3rd.Serializate(&buf_1st);
-            // 发起请求端发完, 就认为自己完成了3次握手
-            ok &= (_peer_conn.Send(buf_3rd) > 0);
+            msg_3rd.Serializate(&buf_3rd);
+            ok &= SendAndRecv(
+                buf_3rd,
+                HANDSHAKE4th,
+                _peer_conn, 
+                [](std::vector<char>){}
+            );
+            if(ok)
+            {
+                _phase = PHASE_FOUR;
+            }
 
-            _shake_hands_ok = true;
             return ok;
         }
 

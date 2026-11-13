@@ -18,6 +18,19 @@ namespace NS_STRATEGY_MODULE
     static const char g_two_id_sep = '&';
     static const millisecond_t g_timeout(500);
 
+    /*
+     * callee 的阶段: NOT_START, PHASE_ONE, PHASE_FOUR
+     * caller 的阶段: NOT_START, PHASE_TWO, PHASE_FOUR
+     */
+    enum HandShakePhase
+    {
+        NOT_START,
+        PHASE_ONE,
+        PHASE_TWO,
+        PHASE_THREE,
+        PHASE_FOUR
+    };
+
     class ClientStrategy
     {
     protected:
@@ -137,8 +150,6 @@ namespace NS_STRATEGY_MODULE
 
         // 打洞逻辑
         virtual bool HolePunching() = 0;
-        // 三次握手逻辑
-        virtual bool RequestHandshake() = 0;
 
     protected:
         Socket* _real_socket;               // 真实套接字 _signal_conn, _peer_conn 共用(端口受限锥形必须共用)
@@ -146,6 +157,6 @@ namespace NS_STRATEGY_MODULE
         Connection _peer_conn;
         std::string _self_id;               // 自己id
         bool _own;                          // 套接字是类创建的还是外部传来的
-        bool _shake_hands_ok;               // 三次握手是否成功
+        HandShakePhase _phase = NOT_START;   // 三次握手阶段
     };
 }

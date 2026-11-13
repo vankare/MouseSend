@@ -14,9 +14,6 @@ std::function<void(const std::vector<char>&)> handler_data =
     FileUtil::WriteFile("test_out.bin", data);
 };
 
-/*
- * 本测试中, callee 监听随机端口, signal_server 监听 4000 端口
- */
 TEST(Strategy, CalleeStrategy2)
 {
     CalleeStrategy callee(
@@ -31,6 +28,21 @@ TEST(Strategy, CalleeStrategy2)
     callee.HolePunching();
     callee.StartRecv();
 }
+
+//TEST(Strategy, CalleeStrategy2)
+//{
+//    CalleeStrategy callee(
+//        "callee",
+//        "39.107.191.147",
+//        4000,
+//        handler_data
+//    );
+//
+//    callee.ConnectSignal();
+//    callee.WaitForPeer("caller");
+//    callee.HolePunching();
+//    callee.StartRecv();
+//}
 
 //TEST(Strategy, LocalTest)
 //{

@@ -65,6 +65,28 @@ namespace NS_STRATEGY_MODULE
                     ret_msg.SetType(PUNCH);
                     break;
                 }
+                // callee 只能接收到第一次, 第三次请求
+                case HANDSHAKE1st:
+                {
+                    auto&& file_name = in_msg.GetPayload();
+                    _rfile_name = std::string(file_name.begin(), file_name.end());
+                    ret_msg.SetType(HANDSHAKE2nd);
+
+                    _phase = PHASE_ONE;
+                    break;
+                }
+                case HANDSHAKE3rd:
+                {
+                    if(_phase != PHASE_ONE)
+                    {
+                        ret_msg.SetType(ERROR);
+                        break;
+                    }
+
+                    ret_msg.SetType(HANDSHAKE4th);
+                    _phase = PHASE_FOUR;
+                    break;
+                }
                 default:
                     break;
             }
@@ -92,44 +114,44 @@ namespace NS_STRATEGY_MODULE
             return ok;
         }
 
-        // 三次握手, 接收第一次, 发起第二次, 接收第三次
-        bool RequestHandshake() override
-        {
-            // 接收第一次握手请求
-            std::vector<char> buf_1st;
-            for(int i = 0; i < g_max_fails; ++i)
-            {
-                if(_peer_conn.Recv(&buf_1st) > 0)
-                {
-                    Message msg_1st;
-                    msg_1st.Deserializate(buf_1st);
-                    if(msg_1st.GetType() == HANDSHAKE2nd)
-                    {
-                        auto file_name = msg_1st.GetPayload();
-                        _rfile_name = std::string(file_name.begin(), file_name.end());
-                        goto two_three;
-                    }
-                }
-                std::this_thread::sleep_for(millisecond_t(500));
-            }
-            _shake_hands_ok = false;
-            return false;
-
-two_three:
-            // 发起第二次握手请求 和 接收第三次握手请求
-            Message msg_2nd(HANDSHAKE2nd, 0, std::vector<char>());
-            std::vector<char> buf_2nd; 
-            msg_2nd.Serializate(&buf_1st);
-            SendAndRecv(
-                buf_2nd, 
-                HANDSHAKE3rd,
-                _peer_conn,
-                [](std::vector<char>){ }
-            );
-            _shake_hands_ok = true;
-            return true;
-        }
-
+//        // 三次握手, 接收第一次, 发起第二次, 接收第三次
+//        bool RequestHandshake() override
+//        {
+//            // 接收第一次握手请求
+//            std::vector<char> buf_1st;
+//            for(int i = 0; i < g_max_fails; ++i)
+//            {
+//                if(_peer_conn.Recv(&buf_1st) > 0)
+//                {
+//                    Message msg_1st;
+//                    msg_1st.Deserializate(buf_1st);
+//                    if(msg_1st.GetType() == HANDSHAKE1st)
+//                    {
+//                        auto file_name = msg_1st.GetPayload();
+//                        _rfile_name = std::string(file_name.begin(), file_name.end());
+//                        goto two_three;
+//                    }
+//                }
+//                std::this_thread::sleep_for(millisecond_t(500));
+//            }
+//            _shake_hands_ok = false;
+//            return false;
+//
+//two_three:
+//            // 发起第二次握手请求 和 接收第三次握手请求
+//            Message msg_2nd(HANDSHAKE2nd, 0, std::vector<char>());
+//            std::vector<char> buf_2nd; 
+//            msg_2nd.Serializate(&buf_2nd);
+//            bool ok = SendAndRecv(
+//                buf_2nd, 
+//                HANDSHAKE3rd,
+//                _peer_conn,
+//                [](std::vector<char>){ }
+//            );
+//            _shake_hands_ok = ok;
+//            return ok;
+//        }
+//
     private:
         bool IsFinish()
         {

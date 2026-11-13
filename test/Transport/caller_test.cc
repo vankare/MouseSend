@@ -4,8 +4,7 @@
 using namespace NS_UTIL_MODULE;
 using namespace NS_STRATEGY_MODULE;
 
-
-TEST(TestStrategy, CallerStrategy)
+TEST(TestStrategy, ShakeHands)
 {
    auto test_data = FileUtil::ReadFile("test_in.bin");
 
@@ -14,9 +13,24 @@ TEST(TestStrategy, CallerStrategy)
     caller.ConnectSignal();
     caller.WaitForPeer("callee");
     caller.HolePunching();
+    caller.RequestHandshake();
 
     EXPECT_TRUE(caller.StartSend(test_data));
 }
+
+
+//TEST(TestStrategy, CallerStrategy)
+//{
+//   auto test_data = FileUtil::ReadFile("test_in.bin");
+//
+//    CallerStrategy caller("caller", "39.107.191.147", 4000);
+//
+//    caller.ConnectSignal();
+//    caller.WaitForPeer("callee");
+//    caller.HolePunching();
+//
+//    EXPECT_TRUE(caller.StartSend(test_data));
+//}
 
 //TEST(TestStrategy, LocalTest)
 //{

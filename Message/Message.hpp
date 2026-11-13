@@ -26,6 +26,7 @@ namespace NS_MESSAGE_MODULE
         HANDSHAKE1st,
         HANDSHAKE2nd,
         HANDSHAKE3rd,
+        HANDSHAKE4th,
         ERROR,
         CONNECT,
         PUNCH
