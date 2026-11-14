@@ -1,6 +1,8 @@
 #pragma once
 
+#include <cstdint>
 #include <fstream>
+#include <stdexcept>
 #include <utility>
 #include <ios>
 #include <string>
@@ -84,9 +86,21 @@ namespace NS_UTIL_MODULE
             return time + "_" + uniuq_id;
         }
 
+        static uint64_t FileSize(const std::string& filename)
+        {
+            std::ifstream in(filename);
+            if(!in.is_open())
+            {
+                return -1;
+            }
+            
+            in.seekg(0, std::ios::end);
+            return in.tellg();
+        }
+
         static bool WriteFile(const std::string& filename, const std::vector<char>& content)
         {
-            std::ofstream out(filename, std::ios::out);
+            std::ofstream out(filename, std::ios::app);
             if(!out.is_open())
             {
                 return false;
@@ -105,14 +119,42 @@ namespace NS_UTIL_MODULE
 
             std::vector<char> content;
 
-            in.seekg(0, std::ios::end);
-            size_t file_size = in.tellg();
-            in.seekg(0, std::ios::beg);
+            size_t file_size = FileSize(filename);
 
             content.resize(file_size);
             in.read(content.data(), file_size);
 
             return content;
+        }
+
+        static uint64_t ReadFilePart(const std::string& filename, uint64_t pos, size_t count, std::vector<char>* out)
+        {
+            std::ifstream in(filename, std::ios::in);
+            if(!in.is_open() || out == nullptr)
+            {
+                return -1;
+            }
+
+            // 拿文件大小
+            uint64_t file_size = FileSize(filename);
+
+            out->resize(count);
+            // 如果 count 大于实际剩余内容, 则会读取剩下内容, 并且状态处于 fail
+            in.read(out->data(), count);
+            out->resize(in.gcount());
+
+
+            if(file_size <= pos + in.gcount())
+            {
+                return 0;
+            }
+            return pos + in.gcount();
+        }
+
+        static bool CrateOrClear(const std::string& filename)
+        {
+            std::ofstream target_file(filename, std::ios::trunc);
+            return target_file.is_open();
         }
     };
     

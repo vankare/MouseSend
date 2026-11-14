@@ -19,8 +19,7 @@ TEST(Strategy, CalleeStrategy2)
     CalleeStrategy callee(
         "callee",
         "39.107.191.147",
-        4000,
-        handler_data
+        4000
     );
 
     callee.ConnectSignal();

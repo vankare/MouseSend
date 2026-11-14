@@ -8,7 +8,7 @@
 #include <unistd.h>
 #include <chrono>
 #include <sys/socket.h>
-#define BUF_SIZE 10240
+#define BUF_SIZE 12288
 
 namespace NS_SOCKET_MODULE
 {

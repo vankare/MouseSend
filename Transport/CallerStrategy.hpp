@@ -7,16 +7,16 @@
 #include "../Message/Message.hpp"
 #include "Connection.hpp"
 #include "ClientStrategy.hpp"
+#include "../Config/Config.hpp"
 
 namespace NS_STRATEGY_MODULE
 {
     using namespace NS_CONNECTION_MODULE;
     using namespace NS_LOGGER_MUDULE;
     using namespace NS_MESSAGE_MODULE;
+    using namespace NS_CONFIG_MODULE;
     const char g_ip_port_sep = ':';    // 例如: "127.0.0.1:8888"
 
-    const uint64_t g_chunk_size = 8192;   // 分片大小
-    const uint16_t g_win_size = 4;        // 窗口大小
     struct PendingPacket
     {
         PendingPacket(std::vector<char>&& send_buf)
@@ -41,7 +41,7 @@ namespace NS_STRATEGY_MODULE
     {
     private:
         // 根据大小分片
-        std::vector<std::vector<char>> MakeChunk(const std::vector<char>& data, uint64_t chunk_size = g_chunk_size)
+        std::vector<std::vector<char>> MakeChunk(const std::vector<char>& data, uint64_t chunk_size = CallerConfig::_send_chunk_size)
         {
             std::vector<std::vector<char>> chunks;
             for(uint64_t i = 0; i < data.size(); )
@@ -54,21 +54,17 @@ namespace NS_STRATEGY_MODULE
             return chunks;
         }
 
-        std::vector<Message> MakeRequest(std::vector<std::vector<char>>&& chunks)
+        std::vector<Message> MakeRequest(std::vector<std::vector<char>>&& chunks, bool isend)
         {
             std::vector<Message> messages;
-            for(uint64_t i = 0; i < chunks.size() - 1; ++i)
+            for(uint64_t i = 0; i < chunks.size(); ++i)
             {
                 messages.emplace_back(SYN, i * chunks[0].size(), std::move(chunks[i]));
             }
             // 特殊处理最后一个包
-            if(chunks.size() == 1)
+            if(isend)
             {
-                messages.emplace_back(FIN, 0, std::move(chunks[0]));
-            }
-            else
-            {
-                messages.emplace_back(FIN, (messages.back().GetSeq()) + chunks[0].size(), std::move(chunks.back()));
+                messages.back().SetType(FIN);
             }
 
             return messages;
@@ -79,10 +75,11 @@ namespace NS_STRATEGY_MODULE
             :ClientStrategy("signal", self_id, signal_ip, signal_port)
             ,_self_id(self_id)
             { 
-                 _signal_conn.RecvTimeOut(g_timeout);
+                 _signal_conn.RecvTimeOut(CallerConfig::_send_recv_timeout);
             }
 
-        bool StartSend(const std::vector<char>& data)
+        // 发送data数据, isend: 是否最后一段数据
+        bool StartSend(const std::vector<char>& data, bool isend)
         {
             if(_phase != PHASE_FOUR)
             {
@@ -94,7 +91,7 @@ namespace NS_STRATEGY_MODULE
             auto chunks = MakeChunk(data);
 
             // 2. 包装成请求
-            auto messages = MakeRequest(std::move(chunks));
+            auto messages = MakeRequest(std::move(chunks), isend);
 
             // 3. 创建窗口(下标: 包)
             std::unordered_map<uint64_t, PendingPacket> window;
@@ -102,7 +99,7 @@ namespace NS_STRATEGY_MODULE
             std::vector<char> recv_vec;
 
             // 4. 设置套接字超时时间
-            _peer_conn.RecvTimeOut(g_timeout);
+            _peer_conn.RecvTimeOut(CallerConfig::_send_recv_timeout);
             LOG(LogLevel::INFO) << "分片、封装报文完成, 即将开始发送工作"; 
             for(uint64_t i = 0; i < messages.size(); ++i)
             {
@@ -112,7 +109,7 @@ namespace NS_STRATEGY_MODULE
                 window.emplace(messages[i].GetSeq(), PendingPacket(std::move(send_vec)));
 
                 // 6. 当窗口大小等于规定大小或者是最后一个请求，发送全部请求
-                if(window.size() == g_win_size || i == messages.size() - 1)
+                if(window.size() == CallerConfig::_send_win_size || i == messages.size() - 1)
                 {
                     for(auto& [seq, packet] : window)
                     {
@@ -133,11 +130,12 @@ namespace NS_STRATEGY_MODULE
                             Message recv_msg;
                             recv_msg.Deserializate(recv_vec);
 
-                            for(auto& [seq, packet] : window)
+                            for(auto& [win_seq, packet] : window)
                             {
-                                if(recv_msg.GetSeq() == seq && (recv_msg.GetType() == ACK || recv_msg.GetType() == FIN))
+                                if(recv_msg.GetSeq() == win_seq && (recv_msg.GetType() == ACK || recv_msg.GetType() == FIN))
                                 {
-                                    window.erase(seq);
+                                    window.erase(win_seq);
+                                    LOG(LogLevel::DEBUG) << "成功发送一个报文 seq: " << win_seq; 
                                     break;
                                 }
                             }
@@ -148,13 +146,13 @@ namespace NS_STRATEGY_MODULE
                             for(auto& [seq, packet] : window)
                             {
                                 // 达到最大失败次数，判定文件传输失败
-                                if(packet._tries >= g_max_fails)
+                                if(packet._tries >= CallerConfig::_max_fails)
                                 {
                                     LOG(LogLevel::FATAL) << "失败达到最大次数，文件传输失败";
                                     return false;
                                 }
                                 // 没有达到最大失败次数，超时
-                                else if(std::chrono::steady_clock::now() - packet._last_active_time > g_timeout)
+                                else if(std::chrono::steady_clock::now() - packet._last_active_time > CallerConfig::_send_recv_timeout)
                                 {
                                     packet._tries++;
                                     packet._last_active_time = std::chrono::steady_clock::now();
@@ -222,7 +220,8 @@ namespace NS_STRATEGY_MODULE
             }
 
             // 发送第三次握手请求 和 接收第四次握手请求
-            Message msg_3rd(HANDSHAKE3rd, 0, std::vector<char>());
+            std::string file_size = std::to_string(FileUtil::FileSize(_sfile_name));
+            Message msg_3rd(HANDSHAKE3rd, 0, std::vector<char>(file_size.begin(), file_size.end()));
             std::vector<char> buf_3rd;
             msg_3rd.Serializate(&buf_3rd);
             ok &= SendAndRecv(
@@ -237,6 +236,11 @@ namespace NS_STRATEGY_MODULE
             }
 
             return ok;
+        }
+
+        std::string& SendFileName()
+        {
+            return _sfile_name;
         }
 
     private:

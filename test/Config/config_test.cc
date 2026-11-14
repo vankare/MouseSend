@@ -10,13 +10,17 @@ TEST(Config, Server)
 
 TEST(Config, Client)
 {
-    EXPECT_EQ(CalleeConfig::_port, 0);
-    EXPECT_EQ(CalleeConfig::_id, "");
+    EXPECT_FALSE(ClientConfig::_id.empty());
+    EXPECT_EQ(ClientConfig::_server_ip, "127.0.0.1");
+    EXPECT_EQ(ClientConfig::_server_port, 4001);
+    EXPECT_EQ(ClientConfig::_max_fails, 3);
+    EXPECT_EQ(ClientConfig::_send_recv_timeout, millisecond_t(500));
 
-    EXPECT_EQ(CallerConfig::_send_chunk_size, 8192);
+    EXPECT_EQ(CalleeConfig::_port, 0);
+
+    EXPECT_EQ(CallerConfig::_send_chunk_size, 8 * 1024);
     EXPECT_EQ(CallerConfig::_send_win_size, 4);
-    EXPECT_EQ(CallerConfig::_max_fails, 3);
-    EXPECT_EQ(CallerConfig::_send_recv_timeout, millisecond_t(500));
+    EXPECT_EQ(CallerConfig::_read_file_size, 10 * 1024 * 1024);
 }
 
 int main()

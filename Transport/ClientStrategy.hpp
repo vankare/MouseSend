@@ -6,17 +6,17 @@
 #include <thread>
 #include "../Message/Message.hpp"
 #include "Connection.hpp"
+#include "../Config/Config.hpp"
 
 namespace NS_STRATEGY_MODULE
 {
     using namespace NS_CONNECTION_MODULE;
     using namespace NS_MESSAGE_MODULE;
+    using namespace NS_CONFIG_MODULE;
 
     using handler_send_recv_t = std::function<void(const std::vector<char>&)>;
     using millisecond_t = std::chrono::milliseconds; 
-    static const int g_max_fails = 3;
     static const char g_two_id_sep = '&';
-    static const millisecond_t g_timeout(500);
 
     /*
      * callee 的阶段: NOT_START, PHASE_ONE, PHASE_FOUR
@@ -39,9 +39,9 @@ namespace NS_STRATEGY_MODULE
                 Type expect_type,
                 Connection& conn,
                 handler_send_recv_t handler,
-                int max_tries                  = g_max_fails,   // 默认 3
-                millisecond_t interval         = g_timeout,     // 默认 500ms
-                millisecond_t  recv_timeout    = g_timeout)     // 默认 500ms
+                int max_tries                  = ClientConfig::_max_fails,   // 默认 3
+                millisecond_t interval         = ClientConfig::_send_recv_timeout,     // 默认 500ms
+                millisecond_t  recv_timeout    = ClientConfig::_send_recv_timeout)     // 默认 500ms
         {
             conn.RecvTimeOut(recv_timeout);
 
@@ -76,7 +76,7 @@ namespace NS_STRATEGY_MODULE
             _real_socket->BuildUdpClient();
             _signal_conn = Connection(signal_id, _real_socket, signal_ip, signal_port);
             _peer_conn._sockfd = _real_socket;
-            _real_socket->SetRecvTimeout(g_timeout);
+            _real_socket->SetRecvTimeout(ClientConfig::_send_recv_timeout);
         }
 
         // 外部传入一个可用的套接字，不用创建
@@ -86,7 +86,7 @@ namespace NS_STRATEGY_MODULE
             ,_self_id(self_id)
             ,_own(false)
         {
-            _real_socket->SetRecvTimeout(g_timeout);
+            _real_socket->SetRecvTimeout(ClientConfig::_send_recv_timeout);
             _peer_conn._sockfd = _real_socket;
         }
 

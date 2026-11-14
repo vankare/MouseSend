@@ -6,11 +6,13 @@
 #include "Connection.hpp"
 #include "ServerStrategy.hpp"
 #include "ClientStrategy.hpp"
+#include "../Net/Util.hpp"
 
 namespace NS_STRATEGY_MODULE
 {
-    using handler_data_t = std::function<void(std::vector<char>)>;
+    using handler_data_t = std::function<void(const std::vector<char>&)>;
     using namespace NS_CONNECTION_MODULE;
+    using namespace NS_UTIL_MODULE;
 
     class CalleeStrategy : public ServerStrategy ,public ClientStrategy   /* 基类初始化顺序由继承时声明决定 */
     {
@@ -23,10 +25,12 @@ namespace NS_STRATEGY_MODULE
          *
          * 注意: 这里的初始化列表顺序不能改变
          */
-        CalleeStrategy(const std::string& self_id, const std::string& signal_ip, uint16_t signal_port, handler_data_t handler_data, uint16_t callee_port = 0)
+        CalleeStrategy(const std::string& self_id, const std::string& signal_ip, uint16_t signal_port, uint16_t callee_port = 0)
             :ServerStrategy(callee_port)
             ,ClientStrategy("signal", self_id, signal_ip, signal_port, _udp_svr.Get())
-            ,_handler_data(handler_data)
+            ,_handler_data([this](const std::vector<char>& data){ FileUtil::WriteFile(_rfile_name, data); })
+            ,_file_size(ULONG_LONG_MAX)
+            ,_recv_size(0)
         {  }
 
         Message Answer(Message in_msg, const InetAddr& peer_addr) override
@@ -51,13 +55,23 @@ namespace NS_STRATEGY_MODULE
 
                     memcpy(_data.data() + seq, payload.data(), payload.size());
 
+                    _recv_size +=  payload.size();
                     if(IsFinish())
                     {
-                        Stop();
                         _handler_data(_data);
+
+                        _data.clear();
+                        _seqs.clear();
+                        _max_seq = ULLONG_MAX;
+                        if(AllFinish())
+                        {
+                            Stop();
+                        }
                         return Message(FIN, seq, std::vector<char>());
                     }
                     ret_msg =  Message(Type::ACK, seq, std::vector<char>());
+
+                    LOG(LogLevel::DEBUG) << "接收到一个报文, seq: " << seq;
                     break;
                 }
                 case PUNCH:
@@ -73,6 +87,7 @@ namespace NS_STRATEGY_MODULE
                     ret_msg.SetType(HANDSHAKE2nd);
 
                     _phase = PHASE_ONE;
+                    FileUtil::CrateOrClear(_rfile_name);
                     break;
                 }
                 case HANDSHAKE3rd:
@@ -82,6 +97,8 @@ namespace NS_STRATEGY_MODULE
                         ret_msg.SetType(ERROR);
                         break;
                     }
+                    std::string&& file_size = std::string(in_msg.GetPayload().begin(), in_msg.GetPayload().end());
+                    _file_size = std::stoul(file_size);
 
                     ret_msg.SetType(HANDSHAKE4th);
                     _phase = PHASE_FOUR;
@@ -100,7 +117,7 @@ namespace NS_STRATEGY_MODULE
             std::vector<char> hole_vec;
             hole_msg.Serializate(&hole_vec);
             bool ok = false;
-            for(int i = 0; i < g_max_fails; ++i)
+            for(int i = 0; i < CalleeConfig::_max_fails; ++i)
                 ok |= _peer_conn.Send(hole_vec);
             if(ok)
             {
@@ -139,11 +156,18 @@ namespace NS_STRATEGY_MODULE
             }
             return true;
         }
+
+        bool AllFinish()
+        {
+            return _recv_size == _file_size;
+        }
     private: 
         std::set<uint64_t> _seqs;
         handler_data_t _handler_data;        // 处理数据方法(外部注册)
         uint64_t _max_seq = ULLONG_MAX;
         Connection _signal_conn;
-        std::string _rfile_name;             // recv到的文件名
+        std::string _rfile_name;             // recv 到的文件名
+        uint64_t _file_size;                 // 总文件大小
+        uint64_t _recv_size;                 // 已接收大小, 累加
     };
 }

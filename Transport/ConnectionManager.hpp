@@ -1,4 +1,5 @@
 #pragma once
+#include "../Config/Config.hpp"
 #include "Connection.hpp"
 #include "../Net/InetAddr.hpp"
 #include <chrono>
@@ -10,8 +11,7 @@
 namespace NS_CONNECTION_MODULE
 {
     using namespace NS_UTIL_MODULE;
-    using minute_t = std::chrono::minutes;
-    const minute_t g_expired_timeout = minute_t(30);
+    using namespace NS_CONFIG_MODULE;
 
     template <class F>
     struct ScopeGuard 
@@ -112,7 +112,7 @@ namespace NS_CONNECTION_MODULE
             std::vector<std::string> to_delete;
             for(auto& [id1, _] : _p2p)
             {
-                if(std::chrono::steady_clock::now() - _connections[id1]._last_active_time > g_expired_timeout)
+                if(std::chrono::steady_clock::now() - _connections[id1]._last_active_time > ServerConfig::_connection_exired_timeout)
                 {
                     // 过期连接, 不能删除, 会导致迭代器失效
                     to_delete.push_back(id1);

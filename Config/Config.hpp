@@ -1,3 +1,4 @@
+#pragma once
 #include "toml.hpp"
 #include "chrono"
 #include "../Net/Util.hpp"
@@ -32,13 +33,50 @@ namespace NS_CONFIG_MODULE
 
     struct ClientConfig
     {
+        ClientConfig(const std::string& client_toml = "")
+        {
+            if(!FileUtil::IsExists(client_toml))
+            {
+                LOG(LogLevel::WARNING) << "配置文件不存在, 使用默认值";
+                return;
+            }
+            auto config = toml::parse_file(client_toml);
+
+            std::string unique_id = StringUtil::UniqueString();
+            _id = config["id"].value_or(unique_id);
+            if(_id.empty())
+            {
+                _id = unique_id;
+            }
+            if(_id == unique_id || _id.empty())
+            {
+                LOG(LogLevel::WARNING) << "没有设置 id, 生成 id" << unique_id;
+            }
+            else
+            {
+                LOG(LogLevel::INFO) << "id 为: " << _id;
+            }
+
+            _max_fails = config["max_fails"].value_or(_max_fails);
+            _send_recv_timeout = millisecond_t(
+                config["send_recv_timeout"].value_or<int64_t>(
+                _send_recv_timeout.count())
+            );
+            _server_ip = config["server_ip"].value_or(_server_ip);
+            _server_port = config["server_port"].value_or(_server_port);
+        }
         inline static std::string _id = "";
+        inline static std::string _server_ip = "127.0.0.1";
+        inline static uint16_t _server_port = 4001;
+        inline static uint16_t _max_fails = 3;
+        inline static millisecond_t _send_recv_timeout = millisecond_t(500);
     };
 
     struct CallerConfig : ClientConfig
     {
 
         CallerConfig(const std::string& client_toml = "")
+            :ClientConfig(client_toml)
         {
             if(!FileUtil::IsExists(client_toml))
             {
@@ -46,34 +84,20 @@ namespace NS_CONFIG_MODULE
                 return;
             }
             auto config = toml::parse_file(client_toml);
-            std::string unique_id = StringUtil::UniqueString();
-            _id = config["id"].value_or(unique_id);
-            if(_id == unique_id || _id.empty())
-            {
-                LOG(LogLevel::WARNING) << "没有设置 id, 生成 id" << unique_id;
-            }
-            else
-            {
-                LOG(LogLevel::INFO) << "发送端 id 为: " << _id;
-            }
-            _send_chunk_size = config["send_chunk_size"].value_or(_send_chunk_size);
+            _send_chunk_size = config["send_chunk_size"].value_or(_send_chunk_size) * 1024;
             _send_win_size = config["send_win_size"].value_or(_send_win_size);
-            _max_fails = config["max_fails"].value_or(_max_fails);
-            _send_recv_timeout = millisecond_t(
-                config["send_recv_timeout"].value_or<int64_t>(
-                _send_recv_timeout.count())
-            );
+            _read_file_size = config["read_file_size"].value_or(_read_file_size) * 1024 * 1024;
         }
 
-        inline static uint64_t _send_chunk_size = 8192;
+        inline static uint32_t _send_chunk_size = 8;
         inline static uint16_t _send_win_size = 4;
-        inline static uint16_t _max_fails = 3;
-        inline static millisecond_t _send_recv_timeout = millisecond_t(500);
+        inline static uint32_t _read_file_size = 10;
     };
 
     struct CalleeConfig : ClientConfig
     {
         CalleeConfig(const std::string& client_toml = "")
+            :ClientConfig(client_toml)
         {
             if(!FileUtil::IsExists(client_toml))
             {
@@ -81,23 +105,13 @@ namespace NS_CONFIG_MODULE
                 return;
             }
             auto config = toml::parse_file(client_toml);
-            std::string unique_id = StringUtil::UniqueString();
-            _id = config["id"].value_or(unique_id);
-            if(_id == unique_id || _id.empty())
-            {
-                LOG(LogLevel::WARNING) << "没有设置 id, 生成 id" << unique_id;
-            }
-            else
-            {
-                LOG(LogLevel::INFO) << "接收端 id 为: " << _id;
-            }
             _port = config["port"].value_or(_port);
         }
         inline static uint16_t _port = 0;
     };
 }
 
-#define LOAD_SERVER_CONFIG(...) NS_CONFIG_MODULE::ServerConfig(__VA_ARGS__)
+#define LOAD_SERVER_CONFIG(...) (NS_CONFIG_MODULE::ServerConfig(__VA_ARGS__))
 #define LOAD_CLIENT_CONFIG(...) \
 do       \
 {        \
