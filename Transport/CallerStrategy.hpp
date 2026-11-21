@@ -134,8 +134,9 @@ namespace NS_STRATEGY_MODULE
                             {
                                 if(recv_msg.GetSeq() == win_seq && (recv_msg.GetType() == ACK || recv_msg.GetType() == FIN))
                                 {
-                                    window.erase(win_seq);
                                     LOG(LogLevel::DEBUG) << "成功发送一个报文 seq: " << win_seq; 
+                                    window.erase(win_seq);
+                                    // 一定要break, 防止迭代器失效
                                     break;
                                 }
                             }
@@ -166,7 +167,6 @@ namespace NS_STRATEGY_MODULE
                                 // 没有达到最大失败次数，没有超时
                                 else
                                 {
-                                    packet._tries++;
                                     continue;
                                 }
                             }
@@ -198,7 +198,7 @@ namespace NS_STRATEGY_MODULE
             {
                 LOG(LogLevel::INFO) << "打洞失败";
             }
-            return 0;
+            return ok;
         }
 
         // 四次握手, 发起第一次, 接收第二次, 发起第三次, 接收第四次

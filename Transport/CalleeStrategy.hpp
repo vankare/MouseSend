@@ -29,7 +29,7 @@ namespace NS_STRATEGY_MODULE
             :ServerStrategy(callee_port)
             ,ClientStrategy("signal", self_id, signal_ip, signal_port, _udp_svr.Get())
             ,_handler_data([this](const std::vector<char>& data){ FileUtil::WriteFile(_rfile_name, data); })
-            ,_file_size(ULONG_LONG_MAX)
+            ,_file_size(0)
             ,_recv_size(0)
         {  }
 
@@ -46,16 +46,33 @@ namespace NS_STRATEGY_MODULE
                 case SYN:
                 {
 
-                    auto&& payload =  in_msg.GetPayload();
+                    const auto& payload =  in_msg.GetPayload();
                     uint64_t seq = in_msg.GetSeq();
 
-                    _seqs.insert(seq);
-                    size_t new_size = std::max(seq+ payload.size(), _data.size());
-                    _data.resize(new_size);
+                    // 外来报文
+                    if (peer_addr.ToString() != _peer_conn.AddrStr()) 
+                    {
+                        ret_msg =  Message(ERROR, seq, std::vector<char>());
+                        break;
+                    }
 
-                    memcpy(_data.data() + seq, payload.data(), payload.size());
+                    // 校验边界值
+                    if (seq > _file_size || payload.size() > _file_size - seq) 
+                    {
+                        LOG(LogLevel::WARNING) << "非法数据包 seq: " << seq;
+                        ret_msg = Message(ERROR, seq, std::vector<char>());
+                        break;
+                    }
 
-                    _recv_size +=  payload.size();
+                    // 去重，重传报文不再记入_recv_size
+                    if(_seqs.insert(seq).second)
+                    {
+                        if(seq + payload.size() > _data.size())
+                            _data.resize(seq + payload.size());
+                        memcpy(_data.data() + seq, payload.data(), payload.size());
+                        _recv_size += payload.size();
+                    }
+
                     if(IsFinish())
                     {
                         _handler_data(_data);

@@ -140,7 +140,6 @@ namespace NS_CONNECTION_MODULE
                 _p2p.erase(id);
                 _p2p.erase(other);
                 _connections.erase(id);
-                _connections.erase(other);
             }
 
             return true;

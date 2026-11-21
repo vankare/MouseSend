@@ -48,13 +48,19 @@ int main(int argc, char* argv[])
     if(parameters["client_type"] == "--send")
     {
         std::unique_ptr<Client> client(new Client(parameters["peer_id"], CallerT));
-        client->Prepare(parameters["file_path"]);
+        if(client->Prepare(parameters["file_path"]) == false)
+        {
+            return 1;
+        }
         client->SendData();
     }
     else
     {
         std::unique_ptr<Client> client(new Client(parameters["peer_id"], CalleeT));
-        client->Prepare();
+        if(client->Prepare() == false)
+        {
+            return 1;
+        }
         client->RecvData();
     }
 
