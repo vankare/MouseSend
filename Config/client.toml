@@ -1,0 +1,14 @@
+id = ""
+server_ip = "39.107.191.147"
+server_port = 4001
+
+max_fails = 3               # 最大失败次数
+send_recv_timeout = 500     # 接收响应超时, 单位 ms
+
+[caller]
+send_chunk_size = 8      # 传输时, 分片大小, 单位KB, 不超过11K
+send_win_size = 4           # 静态窗口大小4
+read_file_size = 10         # 一次性读取最多读取的文件内容, 单位MB
+
+[callee]
+port = 0                    # 监听端口, 0 表示随机
